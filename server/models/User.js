@@ -1,0 +1,110 @@
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true
+  },
+  password: {
+    type: String,
+    required: true,
+    minlength: 6
+  },
+  role: {
+    type: String,
+    enum: ['student', 'coach','admin'],
+    default: 'student',
+    required: true
+  },
+  age: {
+    type: Number,
+    required: true,
+    min: 5,
+    max: 120
+  },
+  chessRating: {
+    type: Number,
+    required: true,
+    min: 0,
+    max: 4000
+  },
+  ratingType: {
+    type: String,
+    enum: ['FIDE', 'Chess.com', 'Lichess', 'National', 'Other'],
+    default: 'Chess.com'
+  },
+
+  // Coach-specific fields
+  experience: { type: Number, default: 0 },
+  hourlyRate: { type: Number, default: 0 },
+  specializations: [{ type: String }],
+  bio: { type: String, maxlength: 1000 },
+  title: {
+    type: String,
+    enum: ['GM', 'IM', 'FM', 'CM', 'NM', 'None'],
+    default: 'None'
+  },
+
+  // Student fields
+  skillLevel: {
+    type: String,
+    enum: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+    default: 'Beginner'
+  },
+  learningGoals: { type: String, maxlength: 500 },
+
+  // Common fields
+  profileImage: { type: String, default: '' },
+  country: { type: String, default: '' },
+  timezone: { type: String, default: 'UTC' },
+
+  averageRating: { type: Number, default: 0 },
+  totalReviews: { type: Number, default: 0 },
+  totalSessions: { type: Number, default: 0 },
+
+  isActive: { type: Boolean, default: true },
+
+  // ⭐️ ADD THIS FIELD
+  slots: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Slot"
+    }
+  ],
+
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+// Hash password before saving
+userSchema.pre('save', async function () {
+  if (!this.isModified('password')) return;
+
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+});
+
+// Compare password method
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  console.log("COMPARE START");
+  console.log("Stored hash:", this.password);
+
+  const result = await bcrypt.compare(candidatePassword, this.password);
+
+  console.log("COMPARE RESULT:", result);
+
+  return result;
+};
+
+module.exports = mongoose.model('User', userSchema);

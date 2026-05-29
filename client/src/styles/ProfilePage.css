@@ -1,0 +1,236 @@
+/* ==========================
+   PROFILE PAGE LAYOUT
+   ========================== */
+
+.profile-container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+/* ==========================
+   HEADER CARD
+   ========================== */
+
+.profile-header-card {
+  background: white;
+  padding: 1.8rem 2rem;
+  border-radius: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 2rem;
+}
+
+.profile-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.avatar-circle {
+  width: 70px;
+  height: 70px;
+  background: #2563eb;
+  color: white;
+  font-size: 32px;
+  font-weight: bold;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-name {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.profile-email {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.role-badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+}
+
+.role-badge.student {
+  background: #10b981;
+}
+
+.role-badge.coach {
+  background: #f59e0b;
+}
+
+.edit-profile-btn {
+  padding: 0.6rem 1.2rem;
+  background: #2563eb;
+  color: white;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: 0.2s ease;
+}
+
+.edit-profile-btn:hover {
+  background: #1e4fc9;
+}
+
+/* ==========================
+   PROFILE GRID
+   ========================== */
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================
+   PROFILE CARDS
+   ========================== */
+
+.profile-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 14px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+}
+
+.card-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 1rem;
+}
+
+.card-content p {
+  margin: 6px 0;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.spec-tag {
+  display: inline-block;
+  background: #e5edff;
+  padding: 4px 10px;
+  border-radius: 12px;
+  margin-right: 6px;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: #2563eb;
+  font-weight: 500;
+}
+
+/* ==========================
+   EDIT MODE FORM
+   ========================== */
+
+.profile-edit-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .profile-edit-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-card label {
+  display: block;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #4b5563;
+  font-weight: 500;
+}
+
+.profile-card input,
+.profile-card select,
+.profile-card textarea {
+  width: 100%;
+  margin-top: 4px;
+  padding: 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  outline: none;
+  transition: border 0.2s ease;
+}
+
+.profile-card input:focus,
+.profile-card select:focus,
+.profile-card textarea:focus {
+  border-color: #2563eb;
+}
+
+.profile-card textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+/* ==========================
+   ACTION BUTTONS
+   ========================== */
+
+.edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  grid-column: 1 / -1;
+  margin-top: 1rem;
+}
+
+.btn-save {
+  background: #2563eb;
+  color: white;
+  padding: 0.7rem 1.4rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-save:hover {
+  background: #1e4fc9;
+}
+
+.btn-cancel {
+  background: #e5e7eb;
+  padding: 0.7rem 1.4rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  color: #374151;
+}
+
+.btn-cancel:hover {
+  background: #d1d5db;
+}
+
+/* SUCCESS / ERROR MESSAGE */
+.profile-message {
+  margin-bottom: 1rem;
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  background: #d1fae5;
+  color: #065f46;
+  font-weight: 600;
+}
