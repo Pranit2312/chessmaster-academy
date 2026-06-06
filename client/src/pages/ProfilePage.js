@@ -1,275 +1,428 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { userAPI } from "../utils/api";
+import Modal from "../components/Modal";
+import LoadingSpinner from "../components/LoadingSpinner";
 import "../styles/ProfilePage.css";
 
 const ProfilePage = () => {
   const { user, updateUser } = useAuth();
-
+  const [profile, setProfile] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
-    name: user?.name || "",
-    age: user?.age || "",
-    country: user?.country || "",
-    chessRating: user?.chessRating || "",
-    ratingType: user?.ratingType || "Chess.com",
-
-    // Coach-only fields (hourlyRate removed)
-    experience: user?.experience || "",
-    specializations: user?.specializations?.join(", ") || "",
-    bio: user?.bio || "",
-
-    // Student-only fields
-    skillLevel: user?.skillLevel || "Beginner",
-    learningGoals: user?.learningGoals || "",
+    name: "",
+    email: "",
+    phone: "",
+    country: "",
+    city: "",
+    chessRating: "",
+    ratingType: "Chess.com",
+    experience: "",
+    specializations: "",
+    bio: "",
+    skillLevel: "Beginner",
+    learningGoals: ""
   });
 
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
+
+  useEffect(() => {
+    if (user) {
+      setProfile(user);
+      setFormData({
+        name: user.name || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        country: user.country || "",
+        city: user.city || "",
+        chessRating: user.chessRating || "",
+        ratingType: user.ratingType || "Chess.com",
+        experience: user.experience || "",
+        specializations: Array.isArray(user.specializations)
+          ? user.specializations.join(", ")
+          : user.specializations || "",
+        bio: user.bio || "",
+        skillLevel: user.skillLevel || "Beginner",
+        learningGoals: user.learningGoals || ""
+      });
+    }
+    setLoading(false);
+  }, [user]);
+
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
     try {
       const updateData = {
         ...formData,
-        age: Number(formData.age),
-        chessRating: Number(formData.chessRating),
+        specializations: formData.specializations
+          .split(",")
+          .map(s => s.trim())
+          .filter(s => s)
       };
 
-      if (user.role === "coach") {
-        updateData.experience = Number(formData.experience);
-        updateData.specializations = formData.specializations
-          .split(",")
-          .map((s) => s.trim())
-          .filter((s) => s);
-      }
-
-      const { data } = await userAPI.updateProfile(updateData);
-      updateUser(data.user);
-
+      await userAPI.updateProfile(updateData);
+      updateUser(updateData);
       setMessage("Profile updated successfully!");
       setIsEditing(false);
-    } catch (error) {
-      setMessage(error.response?.data?.message || "Failed to update profile.");
-    } finally {
-      setLoading(false);
+      setTimeout(() => setMessage(""), 3000);
+    } catch (err) {
+      setMessage("Failed to update profile");
     }
   };
 
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setMessage("Passwords do not match");
+      return;
+    }
+
+    try {
+      await userAPI.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+
+      setMessage("Password changed successfully!");
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setShowPasswordModal(false);
+      setTimeout(() => setMessage(""), 3000);
+    } catch (err) {
+      setMessage("Failed to change password");
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+
   return (
     <div className="profile-container">
-
-      {/* HEADER CARD */}
-      <div className="profile-header-card">
-        <div className="profile-left">
-          <div className="avatar-circle">
-            {user?.name?.charAt(0)}
-          </div>
-
-          <div>
-            <h2 className="profile-name">{user?.name}</h2>
-            <p className="profile-email">{user?.email}</p>
-
-            <span className={`role-badge ${user?.role}`}>
-              {user?.role === "coach" ? "Coach" : "Student"}
-            </span>
-          </div>
+      <header className="profile-header">
+        <div className="profile-avatar">
+          <img src={profile?.avatar || "/default-avatar.png"} alt="Profile" />
         </div>
-
-        {!isEditing && (
-          <button className="edit-profile-btn" onClick={() => setIsEditing(true)}>
-            Edit Profile
+        <div className="profile-info">
+          <h2>{profile?.name}</h2>
+          <p>{profile?.role === "coach" ? "Chess Coach" : "Student"}</p>
+          <p className="email">{profile?.email}</p>
+        </div>
+        <div className="header-actions">
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowPasswordModal(true)}
+          >
+            Change Password
           </button>
-        )}
-      </div>
-
-      {message && <p className="profile-message">{message}</p>}
-
-      {/* ============================ VIEW MODE ============================ */}
-      {!isEditing ? (
-        <div className="profile-grid">
-
-          {/* BASIC CARD */}
-          <div className="profile-card">
-            <h3 className="card-title">Basic Information</h3>
-            <div className="card-content">
-              <p><strong>Name:</strong> {user?.name}</p>
-              <p><strong>Email:</strong> {user?.email}</p>
-              <p><strong>Age:</strong> {user?.age}</p>
-              <p><strong>Country:</strong> {user?.country || "Not set"}</p>
-            </div>
-          </div>
-
-          {/* CHESS CARD */}
-          <div className="profile-card">
-            <h3 className="card-title">Chess Information</h3>
-            <div className="card-content">
-              <p><strong>Rating:</strong> {user?.chessRating}</p>
-              <p><strong>Rating Type:</strong> {user?.ratingType}</p>
-              <p><strong>Total Sessions:</strong> {user?.totalSessions || 0}</p>
-            </div>
-          </div>
-
-          {/* STUDENT CARD */}
-          {user?.role === "student" && (
-            <div className="profile-card">
-              <h3 className="card-title">Learning Preferences</h3>
-              <div className="card-content">
-                <p><strong>Skill Level:</strong> {user?.skillLevel}</p>
-                <p><strong>Goals:</strong> {user?.learningGoals || "Not set"}</p>
-              </div>
-            </div>
-          )}
-
-          {/* COACH CARD */}
-          {user?.role === "coach" && (
-            <div className="profile-card">
-              <h3 className="card-title">Coaching Details</h3>
-              <div className="card-content">
-                <p><strong>Experience:</strong> {user?.experience} years</p>
-
-                {user?.bio && (
-                  <p><strong>Bio:</strong> {user.bio}</p>
-                )}
-
-                {user?.specializations?.length > 0 && (
-                  <p>
-                    <strong>Specializations:</strong>
-                    <br />
-                    {user.specializations.map((spec, i) => (
-                      <span key={i} className="spec-tag">{spec}</span>
-                    ))}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
+          <button
+            className="btn btn-primary"
+            onClick={() => setIsEditing(!isEditing)}
+          >
+            {isEditing ? "Cancel" : "Edit Profile"}
+          </button>
         </div>
+      </header>
 
-      ) : (
-      /* ============================ EDIT MODE ============================ */
+      {message && <div className={`message ${message.includes('success') ? 'success' : 'error'}`}>{message}</div>}
 
-        <form className="profile-edit-form" onSubmit={handleSubmit}>
+      {isEditing ? (
+        <form onSubmit={handleSaveProfile} className="profile-form">
+          <section className="form-section">
+            <h3>Basic Information</h3>
 
-          {/* BASIC */}
-          <div className="profile-card">
-            <h3 className="card-title">Basic Information</h3>
-
-            <label>Name</label>
-            <input name="name" value={formData.name} onChange={handleChange} />
-
-            <label>Age</label>
-            <input type="number" name="age" value={formData.age} onChange={handleChange} />
-
-            <label>Country</label>
-            <input name="country" value={formData.country} onChange={handleChange} />
-          </div>
-
-          {/* CHESS */}
-          <div className="profile-card">
-            <h3 className="card-title">Chess Information</h3>
-
-            <label>Rating</label>
-            <input
-              type="number"
-              name="chessRating"
-              value={formData.chessRating}
-              onChange={handleChange}
-            />
-
-            <label>Rating Type</label>
-            <select name="ratingType" value={formData.ratingType} onChange={handleChange}>
-              <option>Lichess</option>
-              <option>Chess.com</option>
-              <option>FIDE</option>
-              <option>National</option>
-              <option>Other</option>
-            </select>
-          </div>
-
-          {/* COACH EDIT */}
-          {user.role === "coach" && (
-            <div className="profile-card">
-              <h3 className="card-title">Coach Details</h3>
-
-              <label>Experience (years)</label>
+            <div className="form-group">
+              <label>Name</label>
               <input
-                type="number"
-                name="experience"
-                value={formData.experience}
-                onChange={handleChange}
-              />
-
-              <label>Specializations (comma separated)</label>
-              <input
-                name="specializations"
-                value={formData.specializations}
-                onChange={handleChange}
-              />
-
-              <label>Bio</label>
-              <textarea
-                name="bio"
-                value={formData.bio}
+                type="text"
+                name="name"
+                value={formData.name}
                 onChange={handleChange}
               />
             </div>
-          )}
 
-          {/* STUDENT EDIT */}
-          {user.role === "student" && (
-            <div className="profile-card">
-              <h3 className="card-title">Learning Preferences</h3>
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                disabled
+              />
+            </div>
 
-              <label>Skill Level</label>
-              <select
-                name="skillLevel"
-                value={formData.skillLevel}
-                onChange={handleChange}
-              >
-                <option>Beginner</option>
-                <option>Intermediate</option>
-                <option>Advanced</option>
-                <option>Expert</option>
-              </select>
-
-              <label>Goals</label>
-              <textarea
-                name="learningGoals"
-                value={formData.learningGoals}
+            <div className="form-group">
+              <label>Phone</label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
                 onChange={handleChange}
               />
             </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Country</label>
+                <input
+                  type="text"
+                  name="country"
+                  value={formData.country}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>City</label>
+                <input
+                  type="text"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="form-section">
+            <h3>Chess Profile</h3>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Chess Rating</label>
+                <input
+                  type="number"
+                  name="chessRating"
+                  value={formData.chessRating}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Rating Type</label>
+                <select
+                  name="ratingType"
+                  value={formData.ratingType}
+                  onChange={handleChange}
+                >
+                  <option>Chess.com</option>
+                  <option>Lichess</option>
+                  <option>FIDE</option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+          {profile?.role === "coach" ? (
+            <section className="form-section">
+              <h3>Coach Information</h3>
+
+              <div className="form-group">
+                <label>Experience (Years)</label>
+                <input
+                  type="number"
+                  name="experience"
+                  value={formData.experience}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Specializations (comma-separated)</label>
+                <input
+                  type="text"
+                  name="specializations"
+                  value={formData.specializations}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Bio</label>
+                <textarea
+                  name="bio"
+                  value={formData.bio}
+                  onChange={handleChange}
+                  rows="4"
+                />
+              </div>
+            </section>
+          ) : (
+            <section className="form-section">
+              <h3>Student Information</h3>
+
+              <div className="form-group">
+                <label>Skill Level</label>
+                <select
+                  name="skillLevel"
+                  value={formData.skillLevel}
+                  onChange={handleChange}
+                >
+                  <option>Beginner</option>
+                  <option>Intermediate</option>
+                  <option>Advanced</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Learning Goals</label>
+                <textarea
+                  name="learningGoals"
+                  value={formData.learningGoals}
+                  onChange={handleChange}
+                  rows="4"
+                />
+              </div>
+            </section>
           )}
 
-          {/* ACTION BUTTONS */}
-          <div className="edit-actions">
-            <button
-              type="button"
-              className="btn-cancel"
-              onClick={() => setIsEditing(false)}
-            >
-              Cancel
-            </button>
-
-            <button type="submit" className="btn-save">
-              {loading ? "Saving..." : "Save Changes"}
+          <div className="form-actions">
+            <button type="submit" className="btn btn-primary">
+              Save Profile
             </button>
           </div>
-
         </form>
+      ) : (
+        <div className="profile-details">
+          <section className="detail-section">
+            <h3>Basic Information</h3>
+            <div className="detail-grid">
+              <div className="detail-item">
+                <span className="label">Location</span>
+                <span className="value">
+                  {formData.city}, {formData.country}
+                </span>
+              </div>
+              <div className="detail-item">
+                <span className="label">Phone</span>
+                <span className="value">{formData.phone || "Not provided"}</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="detail-section">
+            <h3>Chess Profile</h3>
+            <div className="detail-grid">
+              <div className="detail-item">
+                <span className="label">Rating</span>
+                <span className="value">
+                  {formData.chessRating} ({formData.ratingType})
+                </span>
+              </div>
+              {profile?.role === "student" && (
+                <div className="detail-item">
+                  <span className="label">Skill Level</span>
+                  <span className="value">{formData.skillLevel}</span>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {profile?.role === "coach" ? (
+            <section className="detail-section">
+              <h3>Coach Information</h3>
+              <div className="detail-item">
+                <span className="label">Experience</span>
+                <span className="value">{formData.experience} Years</span>
+              </div>
+              <div className="detail-item">
+                <span className="label">Specializations</span>
+                <span className="value">{formData.specializations}</span>
+              </div>
+              <div className="detail-item">
+                <span className="label">Bio</span>
+                <p className="bio-text">{formData.bio || "No bio provided"}</p>
+              </div>
+            </section>
+          ) : (
+            <section className="detail-section">
+              <h3>Learning Goals</h3>
+              <p className="goals-text">
+                {formData.learningGoals || "No learning goals provided"}
+              </p>
+            </section>
+          )}
+        </div>
       )}
+
+      {/* CHANGE PASSWORD MODAL */}
+      <Modal
+        open={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+      >
+        <div className="password-modal">
+          <h3>Change Password</h3>
+          <form onSubmit={handleChangePassword}>
+            <div className="form-group">
+              <label>Current Password</label>
+              <input
+                type="password"
+                name="currentPassword"
+                value={passwordData.currentPassword}
+                onChange={handlePasswordChange}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>New Password</label>
+              <input
+                type="password"
+                name="newPassword"
+                value={passwordData.newPassword}
+                onChange={handlePasswordChange}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Confirm New Password</label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={passwordData.confirmPassword}
+                onChange={handlePasswordChange}
+                required
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowPasswordModal(false)}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary">
+                Update Password
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
     </div>
   );
 };

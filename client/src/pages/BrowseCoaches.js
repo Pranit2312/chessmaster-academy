@@ -1,20 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { userAPI } from '../utils/api';
 import CoachCard from '../components/CoachCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/BrowseCoaches.css';
 
 const BrowseCoaches = () => {
+  const navigate = useNavigate();
   const [coaches, setCoaches] = useState([]);
   const [filteredCoaches, setFilteredCoaches] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [filters, setFilters] = useState({
-    search: "",
-    minRating: "",
-    maxRating: "",
-    minPrice: "",
-    maxPrice: "",
+    search: '',
+    specialization: '',
+    minRating: 0,
+    maxRating: 3000,
+    minPrice: 0,
+    maxPrice: 10000,
+    sortBy: 'rating'
   });
 
   const fetchCoaches = useCallback(async () => {
@@ -92,6 +96,10 @@ const BrowseCoaches = () => {
     applyFilters();
   }, [applyFilters]);
 
+  const handleCoachClick = (coachId) => {
+    navigate(`/coach/${coachId}`);
+  };
+
   const clearFilters = () => {
     setFilters({
       search: "",
@@ -99,6 +107,7 @@ const BrowseCoaches = () => {
       maxRating: "",
       minPrice: "",
       maxPrice: "",
+      sortBy: "rating"
     });
   };
 
@@ -106,7 +115,6 @@ const BrowseCoaches = () => {
 
   return (
     <div className="browse-container">
-
       {/* Header */}
       <header className="browse-header">
         <h2 className="browse-title">Find Your Perfect Chess Coach</h2>
@@ -176,7 +184,9 @@ const BrowseCoaches = () => {
       {filteredCoaches.length > 0 ? (
         <div className="coach-grid">
           {filteredCoaches.map((coach) => (
-            <CoachCard key={coach._id} coach={{ ...coach, lowestPrice: getLowestPrice(coach) }} />
+            <div key={coach._id} onClick={() => handleCoachClick(coach._id)}>
+              <CoachCard coach={{ ...coach, lowestPrice: getLowestPrice(coach) }} />
+            </div>
           ))}
         </div>
       ) : (

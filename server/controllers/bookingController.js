@@ -49,7 +49,8 @@ exports.createBooking = async (req, res) => {
       commission,
       coachEarning,
       paymentStatus: "paid",
-      sessionStatus: "scheduled"
+      sessionStatus: "scheduled",
+      meetingLink: slot.meetingLink
     });
 
     // 5️⃣ Mark slot booked

@@ -1,0 +1,64 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies (frontend)
+      working-directory: ./client
+      run: npm ci
+    
+    - name: Run linter
+      working-directory: ./client
+      run: npm run lint || true
+    
+    - name: Run tests
+      working-directory: ./client
+      run: npm test -- --coverage --watchAll=false
+    
+    - name: Build frontend
+      working-directory: ./client
+      run: npm run build
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies (frontend)
+      working-directory: ./client
+      run: npm ci
+    
+    - name: Build frontend
+      working-directory: ./client
+      run: npm run build
+    
+    - name: Deploy to Netlify/Vercel
+      working-directory: ./client
+      run: |
+        echo "Deploying frontend..."
+        # Add your deployment commands here

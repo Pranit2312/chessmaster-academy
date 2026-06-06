@@ -89,6 +89,25 @@ exports.getCoachReviews = async (req, res) => {
   }
 };
 
+// @desc    Get reviews for a course
+// @route   GET /api/reviews/course/:courseId
+// @access  Public
+exports.getCourseReviews = async (req, res) => {
+  try {
+    const reviews = await Review.find({ course: req.params.courseId })
+      .populate('student', 'name chessRating')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: reviews.length,
+      data: reviews
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
 // @desc    Get student's reviews
 // @route   GET /api/reviews/my-reviews
 // @access  Private (Student)

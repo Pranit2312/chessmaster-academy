@@ -1,29 +1,35 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { slotAPI, bookingAPI } from '../utils/api';
-import SlotCard from '../components/SlotCard';
 import LoadingSpinner from '../components/LoadingSpinner';
-import Modal from "../components/Modal";
+import { courseAPI, bookingAPI, walletAPI } from '../utils/api';
+import DailyClassCreation from '../components/DailyClassCreation';
+import Wallet from './Wallet';
+import ProfilePage from './ProfilePage';
 import '../styles/Dashboard.css';
 
+const StatCard = ({ icon, value, label }) => (
+  <div className="stat-card">
+    <span className="stat-icon">{icon}</span>
+    <h3>{value}</h3>
+    <p>{label}</p>
+  </div>
+);
+
 const CoachDashboard = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const [slots, setSlots] = useState([]);
-  const [upcomingBookings, setUpcomingBookings] = useState([]);
-  const [showSlotForm, setShowSlotForm] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  const [formData, setFormData] = useState({
-    slotId: null,
-    startTime: "",
-    duration: 60,
-    price: 0,
-    meetingLink: "",
-    meetingPlatform: "Zoom",
-    notes: ""
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    totalEarnings: 0,
+    activeCourses: 0,
+    upcomingBookings: 0
   });
-
-  const [error, setError] = useState("");
+  const [courses, setCourses] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [wallet, setWallet] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     fetchDashboardData();
@@ -31,24 +37,38 @@ const CoachDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [slotsRes, bookingsRes] = await Promise.all([
-        slotAPI.getMySlots({ page: 1, limit: 10 }),
-        bookingAPI.getCoachBookings()
+      setLoading(true);
+      const [coursesRes, bookingsRes, walletRes] = await Promise.all([
+        courseAPI.getCoachCourses?.() || Promise.resolve({ data: [] }),
+        bookingAPI.getCoachBookings?.() || Promise.resolve({ data: [] }),
+        walletAPI.getWallet?.() || Promise.resolve({ data: {} })
       ]);
 
-      setSlots(slotsRes.data.slots);
+      const coursesArray = coursesRes.data?.data || coursesRes.data?.courses || Array.isArray(coursesRes.data) ? coursesRes.data : [];
+      const bookingsArray = bookingsRes.data?.data || bookingsRes.data?.bookings || Array.isArray(bookingsRes.data) ? bookingsRes.data : [];
+      const walletData = walletRes.data?.data || walletRes.data?.wallet || walletRes.data;
 
-      const uniqueBookings = Array.from(
-        new Map(
-          bookingsRes.data.bookings.map(b => [b.slot?._id, b])
-        ).values()
-      );
+      setCourses(coursesArray);
+      setBookings(bookingsArray);
+      setWallet(walletData);
 
-      setUpcomingBookings(
-        uniqueBookings
-          .filter((b) => b.sessionStatus === "scheduled")
-          .slice(0, 5)
-      );
+      let totalStudents = 0;
+      let totalEarnings = 0;
+      coursesArray.forEach(course => {
+        totalStudents += course.enrollmentCount || 0;
+        totalEarnings += (course.pricing?.effectivePrice || course.pricing?.price || 0) * (course.enrollmentCount || 0);
+      });
+
+      const upcomingCount = bookingsArray.filter(b => {
+        return b.status === 'confirmed' && new Date(b.date || b.createdAt) > new Date();
+      }).length || 0;
+
+      setStats({
+        totalStudents,
+        totalEarnings,
+        activeCourses: coursesArray.length || 0,
+        upcomingBookings: upcomingCount
+      });
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
     } finally {
@@ -56,250 +76,233 @@ const CoachDashboard = () => {
     }
   };
 
-  const handleChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
+  const handleCreateCourse = () => {
+    navigate('/create-course');
   };
 
-  // 👉 CREATE OR UPDATE SLOT
-  const handleCreateOrUpdateSlot = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    try {
-      const startTime = new Date(formData.startTime + ":00");
-      const endTime = new Date(startTime.getTime() + formData.duration * 60000);
-
-      const slotData = {
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
-        price: Number(formData.price),
-        duration: Number(formData.duration),
-        meetingLink: formData.meetingLink,
-        meetingPlatform: formData.meetingPlatform,
-        notes: formData.notes,
-      };
-
-      if (formData.slotId) {
-        // UPDATE SLOT
-        await slotAPI.updateSlot(formData.slotId, slotData);
-      } else {
-        // CREATE SLOT
-        await slotAPI.createSlot(slotData);
-      }
-
-      // Reset & Refresh
-      setShowSlotForm(false);
-      setFormData({
-        slotId: null,
-        startTime: '',
-        duration: 60,
-        price: 0,
-        meetingLink: '',
-        meetingPlatform: 'Zoom',
-        notes: ''
-      });
-
-      fetchDashboardData();
-
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to save slot");
-    }
-  };
-
-  // 👉 DELETE SLOT
-  const handleDeleteSlot = async (slotId) => {
-    if (window.confirm("Are you sure you want to delete this slot?")) {
-      try {
-        await slotAPI.deleteSlot(slotId);
-        fetchDashboardData();
-      } catch {
-        alert("Failed to delete slot");
-      }
-    }
-  };
-
-  // 👉 EDIT SLOT
-  const handleEditSlot = (slot) => {
-    setShowSlotForm(true);
-
-    setFormData({
-      slotId: slot._id,
-      startTime: slot.startTime.slice(0, 16), // correct format for datetime-local
-      duration: slot.duration,
-      price: slot.price,
-      meetingLink: slot.meetingLink,
-      meetingPlatform: slot.meetingPlatform,
-      notes: slot.notes || "",
-    });
+  const handleViewCourse = (courseId) => {
+    navigate(`/course/${courseId}`);
   };
 
   if (loading) return <LoadingSpinner />;
 
   return (
     <div className="dashboard-container">
-      {/* HEADER */}
       <header className="dashboard-header">
         <div>
           <h2>Coach Dashboard</h2>
-          <p>Manage your coaching sessions</p>
+          <p>Welcome back, {user?.name}!</p>
         </div>
-
-        <button
-          onClick={() => {
-            setFormData({
-              slotId: null,
-              startTime: "",
-              duration: 60,
-              price: 0,
-              meetingLink: "",
-              meetingPlatform: "Zoom",
-              notes: ""
-            });
-            setShowSlotForm(true);
-          }}
-          className="btn btn-primary"
-        >
-          + Create New Slot
-        </button>
+        <div className="header-actions">
+          <button onClick={() => setActiveTab('slots')} className="btn btn-secondary">
+            Manage Slots
+          </button>
+          <button onClick={handleCreateCourse} className="btn btn-primary">
+            + Create New Course
+          </button>
+        </div>
       </header>
 
-      {/* STATS */}
+      {/* STATS GRID */}
       <div className="stats-grid">
-        <div className="stat-card">
-          <span className="emoji">⭐</span>
-          <h3>{user?.chessRating}</h3>
-          <p>Your Rating</p>
-        </div>
-
-        <div className="stat-card">
-          <span className="emoji">📚</span>
-          <h3>{user?.totalSessions || 0}</h3>
-          <p>Sessions Completed</p>
-        </div>
-
-        <div className="stat-card">
-          <span className="emoji">💰</span>
-          <h3>₹{user?.hourlyRate}</h3>
-          <p>Avg Hourly Rate</p>
-        </div>
-
-        <div className="stat-card">
-          <span className="emoji">⭐</span>
-          <h3>{user?.averageRating?.toFixed(1) || "N/A"}</h3>
-          <p>Average Rating</p>
-        </div>
+        <StatCard icon="📊" value="Overview" label="Dashboard" onClick={() => setActiveTab('overview')} />
+        <StatCard icon="👥" value={stats.totalStudents} label="Total Students" />
+        <StatCard icon="💰" value={`₹${stats.totalEarnings.toLocaleString()}`} label="Total Earnings" />
+        <StatCard icon="📚" value={stats.activeCourses} label="Active Courses" />
       </div>
 
-      {/* SLOT CREATE / UPDATE MODAL */}
-      <Modal open={showSlotForm} onClose={() => setShowSlotForm(false)}>
-        <h2>{formData.slotId ? "Edit Slot" : "Create New Time Slot"}</h2>
+      {/* TABS */}
+      <div className="dashboard-tabs">
+        <button
+          className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+          onClick={() => setActiveTab('overview')}
+        >
+          Overview
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'courses' ? 'active' : ''}`}
+          onClick={() => setActiveTab('courses')}
+        >
+          Courses
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'bookings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('bookings')}
+        >
+          Bookings
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'slots' ? 'active' : ''}`}
+          onClick={() => setActiveTab('slots')}
+        >
+          Slots
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'wallet' ? 'active' : ''}`}
+          onClick={() => setActiveTab('wallet')}
+        >
+          Wallet
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
+          onClick={() => setActiveTab('profile')}
+        >
+          Profile
+        </button>
+      </div>
 
-        {error && <p className="auth-error">{error}</p>}
-
-        <form onSubmit={handleCreateOrUpdateSlot} className="slot-form">
-          <label>Start Date & Time *</label>
-          <input
-            type="datetime-local"
-            name="startTime"
-            value={formData.startTime}
-            onChange={handleChange}
-            required
-          />
-
-          <label>Duration *</label>
-          <select
-            name="duration"
-            value={formData.duration}
-            onChange={handleChange}
-          >
-            <option value={30}>30 minutes</option>
-            <option value={60}>60 minutes</option>
-            <option value={90}>90 minutes</option>
-            <option value={120}>120 minutes</option>
-          </select>
-
-          <label>Price (₹) *</label>
-          <input
-            type="number"
-            name="price"
-            value={formData.price}
-            onChange={handleChange}
-            required
-          />
-
-          <label>Meeting Platform *</label>
-          <select
-            name="meetingPlatform"
-            value={formData.meetingPlatform}
-            onChange={handleChange}
-          >
-            <option>Zoom</option>
-            <option>Google Meet</option>
-            <option>Microsoft Teams</option>
-            <option>Other</option>
-          </select>
-
-          <label>Meeting Link *</label>
-          <input
-            name="meetingLink"
-            value={formData.meetingLink}
-            onChange={handleChange}
-            required
-          />
-
-          <label>Notes (Optional)</label>
-          <textarea
-            name="notes"
-            value={formData.notes}
-            onChange={handleChange}
-          />
-
-          <button className="btn btn-primary" type="submit">
-            {formData.slotId ? "Update Slot" : "Create Slot"}
-          </button>
-        </form>
-      </Modal>
-
-      {/* UPCOMING BOOKINGS */}
-      {upcomingBookings.length > 0 && (
-        <section className="dashboard-section">
-          <h3>Upcoming Sessions</h3>
-
-          <div className="booking-list">
-            {upcomingBookings.map((booking) => (
-              <div key={booking._id} className="booking-item">
-                <strong>{booking.student?.name}</strong>
-                <small>{new Date(booking.slot?.startTime).toLocaleString()}</small>
-                <span className="badge badge-info">Scheduled</span>
+      {/* OVERVIEW TAB */}
+      {activeTab === 'overview' && (
+        <div className="overview-tab">
+          {/* WALLET PREVIEW */}
+          {wallet && (
+            <section className="wallet-overview">
+              <div className="wallet-card">
+                <h3>💳 Wallet Balance</h3>
+                <p className="wallet-amount">₹{wallet.balance?.toLocaleString() || 0}</p>
+                <div className="wallet-actions">
+                  <button className="btn btn-secondary" onClick={() => setActiveTab('wallet')}>
+                    View Wallet
+                  </button>
+                  <button className="btn btn-secondary" onClick={() => navigate('/earnings')}>
+                    View Earnings
+                  </button>
+                </div>
               </div>
-            ))}
+            </section>
+          )}
+
+          <div className="dashboard-grid">
+            <section className="dashboard-section">
+              <h3>Upcoming Bookings</h3>
+              {bookings.length > 0 ? (
+                <div className="bookings-list">
+                  {bookings.slice(0, 5).map(booking => (
+                    <div key={booking._id} className="booking-item">
+                      <div className="booking-info">
+                        <strong>{booking.studentName || 'Student'}</strong>
+                        <small>{new Date(booking.date || booking.createdAt).toLocaleString()}</small>
+                      </div>
+                      <span className={`badge badge-${booking.status}`}>{booking.status}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>No upcoming bookings.</p>
+              )}
+            </section>
+
+            <section className="dashboard-section">
+              <h3>Recent Courses</h3>
+              {courses.length > 0 ? (
+                <div className="mini-courses-list">
+                  {courses.slice(0, 3).map(course => (
+                    <div key={course._id} className="mini-course-item">
+                      <img src={course.thumbnail || '/default-course.png'} alt={course.title} />
+                      <div className="mini-course-info">
+                        <h4>{course.title}</h4>
+                        <span>👥 {course.enrollmentCount || 0}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <button className="btn btn-text" onClick={() => setActiveTab('courses')}>View All Courses</button>
+                </div>
+              ) : (
+                <p>No courses created yet.</p>
+              )}
+            </section>
           </div>
+        </div>
+      )}
+
+      {/* COURSES TAB */}
+      {activeTab === 'courses' && (
+        <section className="dashboard-section">
+          <div className="section-header">
+            <h3>My Courses</h3>
+            <button onClick={handleCreateCourse} className="btn btn-primary btn-sm">
+              + New Course
+            </button>
+          </div>
+          {courses.length > 0 ? (
+            <div className="courses-grid">
+              {courses.map(course => (
+                <div key={course._id} className="course-card-dashboard">
+                  <img src={course.thumbnail || '/default-course.png'} alt={course.title} />
+                  <h4>{course.title}</h4>
+                  <p className="course-category">{course.category}</p>
+                  <div className="course-stats">
+                    <span>👥 {course.enrollmentCount || 0} students</span>
+                    <span>⭐ {course.rating || 'N/A'}</span>
+                  </div>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => handleViewCourse(course._id)}
+                  >
+                    Manage Course
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p>No courses yet.</p>
+              <button onClick={handleCreateCourse} className="btn btn-primary">Create Your First Course</button>
+            </div>
+          )}
         </section>
       )}
 
-      {/* SLOT LIST */}
-      <section className="dashboard-section">
-        <h3>My Time Slots</h3>
+      {/* BOOKINGS TAB */}
+      {activeTab === 'bookings' && (
+        <section className="dashboard-section">
+          <h3>All Bookings</h3>
+          {bookings.length > 0 ? (
+            <div className="bookings-list">
+              {bookings.map(booking => (
+                <div key={booking._id} className="booking-item">
+                  <div className="booking-info">
+                    <strong>{booking.studentName || 'Student'}</strong>
+                    <p>{booking.topic || 'General Coaching'}</p>
+                    <small>{new Date(booking.date || booking.createdAt).toLocaleString()}</small>
+                  </div>
+                  <div className="booking-actions">
+                    <span className={`badge badge-${booking.status}`}>{booking.status}</span>
+                    {booking.meetingLink && (
+                      <a href={booking.meetingLink} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-secondary">
+                        Join Meeting
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>No bookings found.</p>
+          )}
+        </section>
+      )}
 
-        {slots.length > 0 ? (
-          <div className="slot-grid">
-            {slots.map((slot) => (
-              <SlotCard
-                key={slot._id}
-                slot={slot}
-                isCoach={true}
-                onEdit={() => handleEditSlot(slot)}
-                onDelete={() => handleDeleteSlot(slot._id)}
-              />
-            ))}
-          </div>
-        ) : (
-          <p>No slots created yet. Create your first slot to start teaching!</p>
-        )}
-      </section>
+      {/* SLOTS TAB */}
+      {activeTab === 'slots' && (
+        <section className="dashboard-section">
+          <DailyClassCreation coachId={user?._id} />
+        </section>
+      )}
+
+      {/* WALLET TAB */}
+      {activeTab === 'wallet' && (
+        <section className="dashboard-section">
+          <Wallet />
+        </section>
+      )}
+
+      {/* PROFILE TAB */}
+      {activeTab === 'profile' && (
+        <section className="dashboard-section">
+          <ProfilePage />
+        </section>
+      )}
     </div>
   );
 };

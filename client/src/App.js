@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
@@ -15,6 +15,11 @@ import CoachBookings from './pages/CoachBookings';
 import ProfilePage from './pages/ProfilePage';
 import Wallet from "./pages/Wallet";
 import CoachEarnings from "./pages/CoachEarnings";
+import CoursesPage from './pages/CoursesPage';
+import CourseDetailPage from './pages/CourseDetailPage';
+import CoursePlayerPage from './pages/CoursePlayerPage';
+import MyCoursesPage from './pages/MyCoursesPage';
+import CreateCoursePage from './pages/CreateCoursePage';
 
 // Components
 import Navbar from './components/Navbar';
@@ -60,9 +65,23 @@ const PublicRoute = ({ children }) => {
 };
 
 function AppContent() {
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
   return (
-    <>
+    <div className="App">
       <Navbar />
+      <div className="theme-toggle" onClick={toggleTheme}>
+        {theme === 'light' ? '🌙' : '☀️'}
+      </div>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
@@ -100,6 +119,15 @@ function AppContent() {
         />
 
         <Route
+          path="/browse-coaches"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <BrowseCoaches />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/browse"
           element={
             <ProtectedRoute requiredRole="student">
@@ -113,6 +141,52 @@ function AppContent() {
           element={
             <ProtectedRoute requiredRole="student">
               <MyBookings />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Course Routes (All Users) */}
+        <Route
+          path="/courses"
+          element={
+            <ProtectedRoute>
+              <CoursesPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/course/:id"
+          element={
+            <ProtectedRoute>
+              <CourseDetailPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/course-player/:id"
+          element={
+            <ProtectedRoute>
+              <CoursePlayerPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/my-courses"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <MyCoursesPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/create-course"
+          element={
+            <ProtectedRoute requiredRole="coach">
+              <CreateCoursePage />
             </ProtectedRoute>
           }
         />
@@ -158,7 +232,7 @@ function AppContent() {
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-    </>
+    </div>
   );
 }
 

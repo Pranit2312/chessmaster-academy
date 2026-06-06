@@ -45,7 +45,7 @@ const BookingCard = ({ booking, isCoach, onCancel, onComplete, onReview }) => {
           <strong>Payment:</strong>{" "}
           <span
             className={`badge badge-${
-              booking.paymentStatus === 'completed' ? 'success' : 'warning'
+              (booking.paymentStatus === 'completed' || booking.paymentStatus === 'paid') ? 'success' : 'warning'
             }`}
           >
             {booking.paymentStatus}
@@ -54,7 +54,7 @@ const BookingCard = ({ booking, isCoach, onCancel, onComplete, onReview }) => {
       </div>
 
       {/* JOIN MEETING */}
-      {meetingLink && booking.paymentStatus === 'completed' && (
+      {meetingLink && (booking.paymentStatus === 'completed' || booking.paymentStatus === 'paid') && (
         <div className="meeting-section">
           <a
             href={meetingLink}

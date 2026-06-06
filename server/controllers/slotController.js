@@ -1,7 +1,7 @@
 const { paginate } = require('../utils/pagination');
 const Slot = require('../models/Slot');
 const User = require('../models/User');
-const { getCache, setCache } = require('../utils/cache');
+const { getCache, setCache, clearCache } = require('../utils/cache');
 
 // @desc    Create new slot (Coach only)
 // @route   POST /api/slots
@@ -73,6 +73,8 @@ exports.createSlot = async (req, res) => {
       'name email chessRating title'
     );
 
+    clearCache('available_slots');
+
     res.status(201).json({
       success: true,
       slot: populatedSlot
@@ -91,15 +93,31 @@ exports.createSlot = async (req, res) => {
 // @route   GET /api/slots
 // @access  Public
 exports.getSlots = async (req, res) => {
-  const cached = getCache('available_slots');
-  if (cached) return res.json(cached);
+  try {
+    const { coachId, status = 'available' } = req.query;
+    
+    let query = { status };
+    if (coachId) {
+      query.coach = coachId;
+    }
 
-  const slots = await Slot.find({ status: 'available' })
-    .populate('coach', 'name email chessRating title hourlyRate');
+    // Only cache if no specific coach is requested
+    if (!coachId && status === 'available') {
+      const cached = getCache('available_slots');
+      if (cached) return res.json(cached);
+    }
 
-  setCache('available_slots', { success: true, slots });
+    const slots = await Slot.find(query)
+      .populate('coach', 'name email chessRating title hourlyRate');
 
-  res.json({ success: true, slots });
+    if (!coachId && status === 'available') {
+      setCache('available_slots', { success: true, slots });
+    }
+
+    res.json({ success: true, slots });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 };
 
 // @desc    Get coach's own slots
@@ -204,5 +222,235 @@ exports.deleteSlot = async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// ================================================================
+// 🔥 DAILY CLASS CREATION - MANUAL SLOT CREATION FOR COACHES
+// ================================================================
+
+/**
+ * @desc    Create daily slots for a coach manually
+ * @route   POST /api/slots/daily/create
+ * @access  Private (Coach)
+ * @example POST /api/slots/daily/create { date: "2026-06-05", selectedSlots: [...] }
+ */
+exports.createDailySlots = async (req, res) => {
+  try {
+    const { date, selectedSlots, meetingLink, meetingPlatform, fee } = req.body;
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date is required'
+      });
+    }
+
+    if (!meetingLink) {
+      return res.status(400).json({
+        success: false,
+        message: 'Meeting link is required'
+      });
+    }
+
+    const dailyClassCreation = require('../utils/dailyClassCreation');
+    const result = await dailyClassCreation.createDailySlots(
+      req.user.id,
+      date,
+      selectedSlots,
+      meetingLink,
+      meetingPlatform,
+      fee
+    );
+
+    if (result.success) {
+      clearCache('available_slots');
+      return res.status(201).json({
+        success: true,
+        message: result.message,
+        date: result.date,
+        slotsCreated: result.slotsCreated,
+        slots: result.slots
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.message
+      });
+    }
+  } catch (error) {
+    console.error('Daily slots creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Create slots for multiple consecutive days
+ * @route   POST /api/slots/daily/bulk
+ * @access  Private (Coach)
+ * @example POST /api/slots/daily/bulk { startDate: "2026-06-05", numberOfDays: 7 }
+ */
+exports.createBulkDailySlots = async (req, res) => {
+  try {
+    const { startDate, numberOfDays, selectedSlots, meetingLink, meetingPlatform, fee } = req.body;
+
+    if (!startDate || !numberOfDays) {
+      return res.status(400).json({
+        success: false,
+        message: 'startDate and numberOfDays are required'
+      });
+    }
+
+    if (!meetingLink) {
+      return res.status(400).json({
+        success: false,
+        message: 'Meeting link is required'
+      });
+    }
+
+    const dailyClassCreation = require('../utils/dailyClassCreation');
+    const result = await dailyClassCreation.createBulkDailySlots(
+      req.user.id,
+      startDate,
+      numberOfDays,
+      selectedSlots,
+      meetingLink,
+      meetingPlatform,
+      fee
+    );
+
+    if (result.success) {
+      clearCache('available_slots');
+      return res.status(201).json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Bulk daily slots creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Create a custom time slot
+ * @route   POST /api/slots/daily/custom
+ * @access  Private (Coach)
+ * @example POST /api/slots/daily/custom { date: "2026-06-05", time: "14:30", duration: 60 }
+ */
+exports.createCustomSlot = async (req, res) => {
+  try {
+    const { date, time, duration } = req.body;
+
+    if (!date || !time) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date and time are required (time format: HH:MM)'
+      });
+    }
+
+    const dailyClassCreation = require('../utils/dailyClassCreation');
+    const result = await dailyClassCreation.createCustomSlot(
+      req.user.id,
+      date,
+      time,
+      duration || 60
+    );
+
+    if (result.success) {
+      return res.status(201).json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Custom slot creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Get all slots for a specific date
+ * @route   GET /api/slots/daily/:date
+ * @access  Private (Coach)
+ */
+exports.getDailySlotsForDate = async (req, res) => {
+  try {
+    const { date } = req.params;
+
+    const dailyClassCreation = require('../utils/dailyClassCreation');
+    const result = await dailyClassCreation.getCoachSlotsForDate(
+      req.user.id,
+      date
+    );
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Get daily slots error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Delete all slots for a specific date
+ * @route   DELETE /api/slots/daily/:date
+ * @access  Private (Coach)
+ */
+exports.deleteDailySlots = async (req, res) => {
+  try {
+    const { date } = req.params;
+
+    const dailyClassCreation = require('../utils/dailyClassCreation');
+    const result = await dailyClassCreation.deleteDailySlots(
+      req.user.id,
+      date
+    );
+
+    clearCache('available_slots');
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Delete daily slots error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Get predefined time slot templates
+ * @route   GET /api/slots/predefined/list
+ * @access  Public
+ * @example GET /api/slots/predefined/list
+ */
+exports.getPredefinedSlots = (req, res) => {
+  try {
+    const dailyClassCreation = require('../utils/dailyClassCreation');
+    const slots = dailyClassCreation.getPredefinedSlots();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Predefined time slots template',
+      totalSlots: slots.length,
+      description: 'These are standard time slots coaches can use for daily class creation',
+      slots
+    });
+  } catch (error) {
+    console.error('Get predefined slots error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };

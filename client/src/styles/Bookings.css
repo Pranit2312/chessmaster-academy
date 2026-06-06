@@ -1,11 +1,12 @@
 .bookings-page {
   padding: 2rem 0;
   min-height: calc(100vh - 80px);
+  background-color: var(--bg-secondary);
 }
 
 .bookings-page h1 {
   margin-bottom: 0.5rem;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .bookings-grid {
@@ -22,7 +23,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -31,18 +32,20 @@
 }
 
 .modal-content {
-  background: white;
+  background: var(--card-bg);
   border-radius: 12px;
   padding: 2rem;
   max-width: 500px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
 }
 
 .modal-content h2 {
   margin-bottom: 1.5rem;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .modal-actions {
@@ -60,6 +63,7 @@
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
+  color: var(--text-secondary);
 }
 
 .checkbox-label input[type="checkbox"] {

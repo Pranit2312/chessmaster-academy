@@ -2,26 +2,28 @@
   padding: 40px 20px;
   max-width: 1200px;
   margin: auto;
+  background-color: var(--bg-secondary);
 }
 
 .browse-title {
   font-size: 28px;
   font-weight: 700;
   margin-bottom: 10px;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .browse-subtitle {
-  color: #6b7280;
+  color: var(--text-secondary);
   margin-bottom: 25px;
 }
 
 /* Filters */
 .filters-container {
-  background: #ffffff;
+  background: var(--card-bg);
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
   margin-bottom: 30px;
 
   display: grid;
@@ -32,17 +34,19 @@
 .filter-input {
   padding: 12px;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   font-size: 14px;
 }
 
 .filter-input:focus {
-  border-color: #2563eb;
+  border-color: var(--primary-color);
   box-shadow: 0 0 3px rgba(37, 99, 235, 0.4);
 }
 
 .clear-btn {
-  background: #6b7280;
+  background: var(--secondary-color);
   color: white;
   padding: 10px 18px;
   border-radius: 8px;
@@ -64,10 +68,11 @@
 
 /* Coach Card Design */
 .coach-card {
-  background: white;
+  background: var(--card-bg);
   border-radius: 14px;
   padding: 20px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
   transition: 0.3s ease;
   cursor: pointer;
 }
@@ -87,7 +92,7 @@
   width: 55px;
   height: 55px;
   border-radius: 50%;
-  background: #2563eb;
+  background: var(--primary-color);
   color: white;
   font-size: 22px;
   display: flex;
@@ -98,10 +103,11 @@
 .coach-name {
   font-size: 20px;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .coach-title {
-  color: #6b7280;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -119,18 +125,19 @@
 }
 
 .spec-tag {
-  background: #e0e7ff;
+  background: rgba(37, 99, 235, 0.1);
   padding: 6px 10px;
   border-radius: 8px;
-  color: #3730a3;
+  color: var(--primary-color);
   font-size: 12px;
+  border: 1px solid rgba(37, 99, 235, 0.2);
 }
 
 .view-profile-btn {
   width: 100%;
   margin-top: 15px;
   padding: 12px;
-  background: #2563eb;
+  background: var(--primary-color);
   color: white;
   border: none;
   border-radius: 8px;
@@ -147,7 +154,7 @@
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .empty-state button {

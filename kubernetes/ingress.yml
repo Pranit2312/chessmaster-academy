@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chess-ecosystem-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - api.chess-ecosystem.com
+    - chess-ecosystem.com
+    secretName: chess-ecosystem-tls
+  rules:
+  - host: api.chess-ecosystem.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: chess-ecosystem-backend
+            port:
+              number: 80
+  - host: chess-ecosystem.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: chess-ecosystem-frontend
+            port:
+              number: 80

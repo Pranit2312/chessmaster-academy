@@ -6,3 +6,5 @@ exports.setCache = (key, value, ttl = 60000) => {
 };
 
 exports.getCache = (key) => cache.get(key);
+
+exports.clearCache = (key) => cache.delete(key);

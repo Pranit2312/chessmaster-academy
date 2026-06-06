@@ -180,3 +180,26 @@ exports.getPaymentDetails = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// @desc    Verify Razorpay signature
+// @route   POST /api/payments/verify-signature
+// @access  Private
+exports.verifySignature = async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    const sign = razorpay_order_id + '|' + razorpay_payment_id;
+    const expectedSign = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(sign)
+      .digest('hex');
+
+    if (razorpay_signature === expectedSign) {
+      res.status(200).json({ success: true, message: 'Signature verified' });
+    } else {
+      res.status(400).json({ success: false, message: 'Invalid signature' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

@@ -1,0 +1,188 @@
+.course-detail-page {
+  padding-bottom: 4rem;
+  background-color: var(--bg-secondary);
+}
+
+.course-hero {
+  position: relative;
+  height: 400px;
+  background: #111827;
+  overflow: hidden;
+}
+
+.hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.5;
+}
+
+.hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  background: linear-gradient(to right, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+}
+
+.hero-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  width: 100%;
+  color: white;
+}
+
+.hero-content h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.subtitle {
+  font-size: 1.25rem;
+  margin-bottom: 2rem;
+  max-width: 600px;
+  opacity: 0.9;
+}
+
+.course-meta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.course-detail-container {
+  max-width: 1200px;
+  margin: -60px auto 0;
+  padding: 0 2rem;
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 2rem;
+  position: relative;
+  z-index: 10;
+}
+
+.course-main {
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+}
+
+.tab {
+  padding: 1.25rem 2rem;
+  border: none;
+  background: none;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.tab.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  background-color: var(--card-bg);
+}
+
+.tab-content {
+  padding: 2.5rem;
+  color: var(--text-primary);
+}
+
+.curriculum-tab .chapter {
+  margin-bottom: 2rem;
+}
+
+.curriculum-tab .chapter h4 {
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.curriculum-tab .lessons {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.curriculum-tab .lesson {
+  display: flex;
+  justify-content: space-between;
+  padding: 1rem;
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.course-sidebar {
+  position: sticky;
+  top: 100px;
+  height: fit-content;
+}
+
+.course-card-sidebar {
+  background-color: var(--card-bg);
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  border: 1px solid var(--border-color);
+}
+
+.pricing-section {
+  margin-bottom: 1.5rem;
+}
+
+.price {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.course-includes {
+  margin-top: 2rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1.5rem;
+}
+
+.course-includes h4 {
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.course-includes ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.course-includes li {
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 1024px) {
+  .course-detail-container {
+    grid-template-columns: 1fr;
+    margin-top: 2rem;
+  }
+  
+  .course-sidebar {
+    position: static;
+  }
+}

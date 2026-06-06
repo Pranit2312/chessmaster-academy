@@ -1,13 +1,15 @@
 .coach-profile {
   padding: 2rem 0;
   min-height: calc(100vh - 80px);
+  background-color: var(--bg-secondary);
 }
 
 .profile-header {
-  background: white;
+  background: var(--card-bg);
   border-radius: 12px;
   padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
   margin-bottom: 2rem;
   display: flex;
   gap: 2rem;
@@ -18,7 +20,7 @@
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--primary-color) 0%, #1e3a8a 100%);
   color: white;
   display: flex;
   align-items: center;
@@ -41,7 +43,7 @@
 
 .profile-title-section h1 {
   font-size: 2rem;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .profile-stats {
@@ -58,7 +60,7 @@
 .stat-label {
   display: block;
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-secondary);
   margin-bottom: 0.25rem;
 }
 
@@ -66,7 +68,7 @@
   display: block;
   font-size: 1.5rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .profile-rating {
@@ -76,12 +78,12 @@
 }
 
 .rating-text {
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .bio-text {
   line-height: 1.6;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .specializations {
@@ -97,9 +99,11 @@
 }
 
 .review-card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
   border-radius: 8px;
   padding: 1rem;
+  color: var(--text-primary);
 }
 
 .review-header {
@@ -110,7 +114,7 @@
 }
 
 .review-comment {
-  color: #374151;
+  color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: 0.5rem;
 }
@@ -130,239 +134,109 @@
   }
 }
 
-.coach-profile {
-  padding: 2rem 0;
-  min-height: calc(100vh - 80px);
-}
-
-.profile-header {
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
-  display: flex;
-  gap: 2rem;
-  align-items: center;
-}
-
-.profile-avatar-large {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 3rem;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.profile-info {
-  flex: 1;
-}
-
-.profile-title-section {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.profile-title-section h1 {
-  font-size: 2rem;
-  color: #111827;
-}
-
-.profile-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 1rem;
-}
-
-.stat {
-  text-align: center;
-}
-
-.stat-label {
-  display: block;
-  font-size: 14px;
-  color: #6b7280;
-  margin-bottom: 0.25rem;
-}
-
-.stat-value {
-  display: block;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #111827;
-}
-
-.profile-rating {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.rating-text {
-  color: #6b7280;
-}
-
-.bio-text {
-  line-height: 1.6;
-  color: #374151;
-}
-
-.specializations {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.reviews-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.review-card {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 1rem;
-}
-
-.review-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.75rem;
-}
-
-.review-comment {
-  color: #374151;
-  line-height: 1.6;
-  margin-bottom: 0.5rem;
-}
-
-@media (max-width: 768px) {
-  .profile-header {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .profile-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .profile-title-section {
-    flex-direction: column;
-  }
-}
-
-/* ============================= */
-/* FULL SCREEN BLUE OVERLAY POPUP */
-/* ============================= */
-
-.payment-modal-overlay {
+/* Payment Modal CSS */
+.payment-modal {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(6px);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 3000;
-  animation: fadeIn 0.2s ease-out;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease;
 }
 
-/* PAYMENT CARD */
-.payment-card {
-  background: white;
-  width: 420px;
-  padding: 32px;
-  border-radius: 18px;
+.payment-box {
+  background: var(--card-bg, #ffffff);
+  border-radius: 20px;
+  padding: 2.5rem;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
   text-align: center;
-  animation: zoomIn 0.25s ease-out;
-  box-shadow: 0px 8px 25px rgba(0,0,0,0.25);
 }
 
 .payment-title {
-  margin-bottom: 25px;
-  font-size: 24px;
+  font-size: 1.5rem;
+  color: var(--text-primary, #111827);
+  margin-bottom: 0.25rem;
   font-weight: 700;
-  color: #111;
 }
 
-/* WALLET BUTTON */
+.payment-subtitle {
+  color: var(--text-secondary, #6b7280);
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+}
+
+.wallet-btn, .razorpay-btn {
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+  border: none;
+}
+
 .wallet-btn {
-  width: 100%;
-  padding: 14px;
-  margin: 10px 0;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
-  font-size: 17px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  transition: 0.25s;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
 }
+
 .wallet-btn:hover {
-  transform: translateY(-3px);
-  background: linear-gradient(135deg, #16a34a, #15803d);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
 }
 
-/* RAZORPAY BUTTON */
 .razorpay-btn {
-  width: 100%;
-  padding: 14px;
-  margin: 10px 0;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
-  font-size: 17px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  transition: 0.25s;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
 }
+
 .razorpay-btn:hover {
-  transform: translateY(-3px);
-  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
 }
 
-/* CANCEL BUTTON */
 .close-btn {
-  width: 100%;
-  padding: 14px;
-  margin-top: 4px;
-  border-radius: 12px;
-  background: #e5e7eb;
-  color: #333;
-  font-size: 16px;
-  font-weight: 600;
+  margin-top: 1rem;
+  background: transparent;
+  color: var(--text-secondary, #6b7280);
+  border: 1px solid var(--border-color, #e5e7eb);
+  padding: 0.875rem;
+  border-radius: 10px;
   cursor: pointer;
-  border: none;
-  transition: 0.25s;
-}
-.close-btn:hover {
-  background: #d1d5db;
-  transform: translateY(-3px);
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
-/* POPUP ANIMATION */
+.close-btn:hover {
+  background: var(--bg-secondary, #f3f4f6);
+  color: var(--text-primary, #111827);
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-@keyframes zoomIn {
-  from { transform: scale(0.9); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px); scale: 0.95; }
+  to { opacity: 1; transform: translateY(0); scale: 1; }
 }

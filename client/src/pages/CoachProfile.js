@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
-import { userAPI, slotAPI, reviewAPI, paymentAPI, bookingAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import SlotCard from '../components/SlotCard';
+import { userAPI, reviewAPI, slotAPI, bookingAPI, paymentAPI } from '../utils/api';
 import LoadingSpinner from '../components/LoadingSpinner';
+import SlotCard from '../components/SlotCard';
 import '../styles/CoachProfile.css';
 
 const CoachProfile = () => {
@@ -167,13 +167,14 @@ const CoachProfile = () => {
         <div className="payment-modal">
           <div className="payment-box">
             <h2 className="payment-title">Select Payment Method</h2>
+            <p className="payment-subtitle">Choose how you would like to pay for your session with {coach.name}.</p>
 
             <button className="wallet-btn" onClick={handleWalletPayment}>
-              💰Pay Using Wallet
+              <span>💰</span> Pay Using Wallet
             </button>
 
             <button className="razorpay-btn" onClick={handleRazorpayPayment}>
-              💳Pay Online (Razorpay)
+              <span>💳</span> Pay Online (Razorpay)
             </button>
 
             {/* CLOSE MODAL */}

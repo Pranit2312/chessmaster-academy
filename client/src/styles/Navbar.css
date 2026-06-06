@@ -1,51 +1,112 @@
-/* Navbar outer container */
 .navbar {
-  width: 100%;
-  background: white;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  background-color: var(--bg-primary);
+  height: 80px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.1rem;
   position: sticky;
   top: 0;
-  z-index: 2000;
-  padding: 12px 20px;
+  z-index: 999;
+  box-shadow: var(--shadow);
+  border-bottom: 1px solid var(--border-color);
+  transition: all 0.3s ease;
 }
 
-/* Flex container */
-.navbar-content {
+.navbar-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  height: 80px;
+  width: 100%;
+  max-width: 1200px;
+  padding: 0 2rem;
 }
 
-/* LEFT SIDE */
-.navbar-left {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* Logo */
-.navbar-brand {
+.navbar-logo {
+  color: var(--text-primary);
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 1.5rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 10px;
-  text-decoration: none;
 }
 
-.pawn-icon {
-  font-size: 32px;
-}
-
-.brand-text {
-  font-size: 26px;
-  font-weight: 700;
-  color: #1e3a8a;
-}
-
-/* TABS under the brand */
-.navbar-tabs {
+.nav-menu {
   display: flex;
-  gap: 18px;
-  margin-top: 5px;
+  align-items: center;
+  list-style: none;
+  text-align: center;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-item {
+  height: 80px;
+}
+
+.nav-links {
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  padding: 0 1rem;
+  height: 100%;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.nav-links:hover {
+  color: var(--primary-color);
+}
+
+.btn-signup {
+  background-color: var(--primary-color);
+  color: white !important;
+  border-radius: 8px;
+  height: 40px !important;
+  margin-top: 20px;
+  margin-left: 1rem;
+  padding: 0 1.5rem !important;
+}
+
+.logout-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  margin-left: 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover {
+  background-color: #fee2e2;
+  color: #ef4444;
+  border-color: #fecaca;
+}
+
+@media screen and (max-width: 960px) {
+  .nav-menu {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar-content {
+    padding: 0.75rem;
+  }
+
+  .pawn-icon {
+    font-size: 1.5rem;
+  }
+
+  .navbar-brand {
+    font-size: 1.2rem;
+  }
 }
 
 .nav-tab {
