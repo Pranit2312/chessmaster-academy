@@ -23,8 +23,7 @@ exports.getMyWallet = async (req, res) => {
   if (!wallet) {
     wallet = await Wallet.create({
       user: req.user.id,
-      balance: 0,
-      earnings: 0
+      balance: 0
     });
   }
 
@@ -39,7 +38,7 @@ exports.getWallet = async (req, res) => {
   try {
     const wallet = await Wallet.findOne({ user: req.user.id });
     if (!wallet) {
-      return res.status(200).json({ success: true, data: { balance: 0, earnings: 0 } });
+      return res.status(200).json({ success: true, data: { balance: 0 } });
     }
     res.status(200).json({ success: true, data: wallet });
   } catch (error) {
@@ -81,69 +80,115 @@ exports.getCoachEarnings = async (req, res) => {
 
 exports.requestWithdrawal = async (req, res) => {
   try {
-    const { amount } = req.body;
+    const { amount, bankDetails, upiId } = req.body;
 
-    const wallet = await Wallet.findOne({ user: req.user.id });
-    if (wallet.balance < amount) {
-      return res.status(400).json({ message: 'Insufficient balance' });
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid withdrawal amount' });
     }
 
-    wallet.balance -= amount;
-    await wallet.save();
+    const wallet = await Wallet.findOne({ user: req.user.id });
+    if (!wallet) {
+      return res.status(404).json({ success: false, message: 'Wallet not found' });
+    }
+    if (wallet.balance < amount) {
+      return res.status(400).json({ success: false, message: 'Insufficient balance' });
+    }
+
+    const pending = await Withdrawal.findOne({ coach: req.user.id, status: 'pending' });
+    if (pending) {
+      return res.status(400).json({ success: false, message: 'You already have a pending withdrawal request' });
+    }
 
     const withdrawal = await Withdrawal.create({
       coach: req.user.id,
-      amount
+      amount,
+      bankDetails,
+      upiId,
+      status: 'pending'
+    });
+
+    wallet.balance -= amount;
+    wallet.pendingWithdrawal = (wallet.pendingWithdrawal || 0) + amount;
+    await wallet.save();
+
+    await Transaction.create({
+      user: req.user.id,
+      amount,
+      type: 'debit',
+      reason: 'withdrawal'
     });
 
     res.status(200).json({
       success: true,
-      withdrawal
+      withdrawal,
+      newBalance: wallet.balance
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// Add money (student)
+// Add money via Razorpay (creates order, doesn't credit until verified)
 exports.addMoney = async (req, res) => {
-  const { amount } = req.body;
+  try {
+    const razorpay = getRazorpayInstance();
+    if (!razorpay) {
+      return res.status(503).json({ success: false, message: 'Payment service unavailable' });
+    }
 
-  const wallet = await Wallet.findOne({ user: req.user.id });
-  wallet.balance += amount;
-  wallet.updatedAt = new Date();
-  await wallet.save();
+    const { amount } = req.body;
+    if (!amount || amount < 1) {
+      return res.status(400).json({ success: false, message: 'Invalid amount' });
+    }
 
-  await Transaction.create({
-    user: req.user.id,
-    amount,
-    type: 'credit',
-    reason: 'wallet_topup'
-  });
+    const order = await razorpay.orders.create({
+      amount: Math.round(amount * 100),
+      currency: 'INR',
+      receipt: `wallet_topup_${Date.now()}`
+    });
 
-  res.json({ success: true, balance: wallet.balance });
+    res.status(201).json({
+      success: true,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      key: process.env.RAZORPAY_KEY_ID
+    });
+  } catch (error) {
+    console.error('Wallet Topup Order Error:', error);
+    res.status(500).json({ success: false, message: 'Error creating topup order' });
+  }
 };
 
-// Alias for addMoney
+// Alias for addMoney (same Razorpay flow)
 exports.addFunds = async (req, res) => {
   try {
-    const { amount } = req.body;
-    const wallet = await Wallet.findOne({ user: req.user.id });
-    if (!wallet) {
-      await Wallet.create({ user: req.user.id, balance: amount });
-    } else {
-      wallet.balance += Number(amount);
-      await wallet.save();
+    const razorpay = getRazorpayInstance();
+    if (!razorpay) {
+      return res.status(503).json({ success: false, message: 'Payment service unavailable' });
     }
-    await Transaction.create({
-      user: req.user.id,
-      amount,
-      type: 'credit',
-      reason: 'wallet_topup'
+
+    const { amount } = req.body;
+    if (!amount || amount < 1) {
+      return res.status(400).json({ success: false, message: 'Invalid amount' });
+    }
+
+    const order = await razorpay.orders.create({
+      amount: Math.round(amount * 100),
+      currency: 'INR',
+      receipt: `add_funds_${Date.now()}`
     });
-    res.status(200).json({ success: true, balance: wallet ? wallet.balance : amount });
+
+    res.status(201).json({
+      success: true,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      key: process.env.RAZORPAY_KEY_ID
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('Add Funds Order Error:', error);
+    res.status(500).json({ success: false, message: 'Error creating order' });
   }
 };
 
@@ -186,6 +231,20 @@ exports.verifyTopupPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
 
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ success: false, message: 'Missing payment details' });
+    }
+
+    // Idempotency check: prevent double-crediting
+    const existing = await Transaction.findOne({
+      user: req.user.id,
+      razorpayPaymentId: razorpay_payment_id
+    });
+    if (existing) {
+      const wallet = await Wallet.findOne({ user: req.user.id });
+      return res.status(200).json({ success: true, balance: wallet?.balance || 0, alreadyProcessed: true });
+    }
+
     const sign = razorpay_order_id + '|' + razorpay_payment_id;
     const expectedSign = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
@@ -199,18 +258,20 @@ exports.verifyTopupPayment = async (req, res) => {
     // Top up the wallet after verification
     let wallet = await Wallet.findOne({ user: req.user.id });
     if (!wallet) {
-      wallet = await Wallet.create({ user: req.user.id, balance: amount });
+      wallet = await Wallet.create({ user: req.user.id, balance: Number(amount) });
     } else {
       wallet.balance += Number(amount);
       await wallet.save();
     }
 
-    // Log the transaction
+    // Log the transaction with Razorpay IDs for idempotency
     await Transaction.create({
       user: req.user.id,
       amount: Number(amount),
       type: 'credit',
-      reason: 'wallet_topup'
+      reason: 'wallet_topup',
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id
     });
 
     res.status(200).json({ success: true, balance: wallet.balance });

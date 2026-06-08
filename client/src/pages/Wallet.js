@@ -1,19 +1,24 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { walletAPI } from "../utils/api";
 import Modal from "../components/Modal";
 import LoadingSpinner from "../components/LoadingSpinner";
 import "../styles/Wallet.css";
 
+const RAZORPAY_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
+
 const Wallet = () => {
   const { user } = useAuth();
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showAddFunds, setShowAddFunds] = useState(false);
   const [showWithdrawal, setShowWithdrawal] = useState(false);
   const [addAmount, setAddAmount] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const [bankDetails, setBankDetails] = useState({
     accountNumber: "",
     ifsc: "",
@@ -22,20 +27,45 @@ const Wallet = () => {
 
   useEffect(() => {
     fetchWalletData();
+    loadRazorpayScript();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadRazorpayScript = useCallback(() => {
+    if (window.Razorpay) {
+      setRazorpayLoaded(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = RAZORPAY_SCRIPT;
+    script.onload = () => setRazorpayLoaded(true);
+    script.onerror = () => console.warn("Razorpay SDK failed to load");
+    document.body.appendChild(script);
   }, []);
+
+  const getNestedValue = (obj, path, fallback = null) => {
+    return path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : fallback), obj);
+  };
 
   const fetchWalletData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const [walletRes, transRes] = await Promise.all([
-        walletAPI.getWallet() || Promise.resolve({ data: {} }),
-        walletAPI.getTransactions() || Promise.resolve({ data: [] })
+        walletAPI.getWallet(),
+        walletAPI.getTransactions()
       ]);
 
-      setWallet(walletRes.data);
-      setTransactions(transRes.data || []);
+      const body = getNestedValue(walletRes, 'data', {});
+      const walletData = body.wallet || body.data || body;
+
+      const transBody = getNestedValue(transRes, 'data', {});
+      const transData = transBody.data || transBody;
+
+      setWallet(walletData);
+      setTransactions(Array.isArray(transData) ? transData : []);
     } catch (err) {
-      console.error("Error fetching wallet:", err);
+      const msg = err.response?.data?.message || err.message || 'Failed to load wallet';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -43,22 +73,28 @@ const Wallet = () => {
 
   const handleAddFunds = async () => {
     if (!addAmount || isNaN(addAmount) || Number(addAmount) < 1) {
-      alert("Please enter a valid amount");
+      setError("Please enter a valid amount (min ₹1)");
+      return;
+    }
+    if (!razorpayLoaded) {
+      setError("Payment system not ready. Please wait.");
       return;
     }
 
+    setProcessing(true);
+    setError(null);
+
     try {
-      // 1. Create Order
       const { data } = await walletAPI.createTopupOrder({
         amount: Number(addAmount)
       });
 
       if (!data.orderId) {
-        alert("Failed to initiate payment");
+        setError("Failed to initiate payment");
+        setProcessing(false);
         return;
       }
 
-      // 2. Open Razorpay Modal
       const options = {
         key: data.key,
         amount: data.amount,
@@ -66,45 +102,62 @@ const Wallet = () => {
         name: "ChessMaster Academy",
         description: "Wallet Top-up",
         order_id: data.orderId,
-        handler: async function (response) {
+          handler: async function (response) {
           try {
-            // 3. Verify Payment
             await walletAPI.verifyTopupPayment({
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
               amount: Number(addAmount)
             });
-
-            alert("Funds added successfully!");
             setAddAmount("");
             setShowAddFunds(false);
             fetchWalletData();
-          } catch (error) {
-            alert("Payment verification failed");
-            console.error(error);
+            setError(null);
+          } catch (verifyErr) {
+            setError("Payment verification failed. Please contact support if amount was deducted.");
+          } finally {
+            setProcessing(false);
+          }
+        },
+        modal: {
+          ondismiss: function() {
+            setProcessing(false);
           }
         },
         prefill: {
           name: user?.name,
-          email: user?.email
+          email: user?.email,
+          contact: user?.phone || ""
         },
         theme: { color: "#2563eb" }
       };
 
       const razorpay = new window.Razorpay(options);
+      razorpay.on("payment.failed", function (response) {
+        setError(`Payment failed: ${response.error?.description || "Please try again"}`);
+        setProcessing(false);
+      });
       razorpay.open();
     } catch (err) {
-      console.error(err);
-      alert("Failed to initiate payment");
+      const msg = err.response?.data?.message || "Failed to initiate payment";
+      setError(msg);
+      setProcessing(false);
     }
   };
 
   const handleWithdrawal = async () => {
-    if (!withdrawAmount || !bankDetails.accountNumber || !bankDetails.ifsc) {
-      alert("Please fill all withdrawal details");
+    if (!withdrawAmount || isNaN(withdrawAmount) || Number(withdrawAmount) < 1) {
+      setError("Please enter a valid withdrawal amount");
       return;
     }
+    if (!bankDetails.accountNumber || !bankDetails.ifsc) {
+      setError("Please fill bank account number and IFSC code");
+      return;
+    }
+
+    setProcessing(true);
+    setError(null);
 
     try {
       await walletAPI.requestWithdrawal({
@@ -115,10 +168,24 @@ const Wallet = () => {
       setBankDetails({ accountNumber: "", ifsc: "", accountHolder: "" });
       setShowWithdrawal(false);
       fetchWalletData();
-      alert("Withdrawal request submitted!");
+      setError(null);
     } catch (err) {
-      alert("Failed to request withdrawal");
+      const msg = err.response?.data?.message || "Failed to request withdrawal";
+      setError(msg);
+    } finally {
+      setProcessing(false);
     }
+  };
+
+  const getReasonLabel = (reason) => {
+    const labels = {
+      wallet_topup: "Wallet Top-up",
+      booking_payment: "Session Payment",
+      booking_refund: "Refund",
+      coach_earning: "Coaching Earning",
+      withdrawal: "Withdrawal"
+    };
+    return labels[reason] || reason || "Transaction";
   };
 
   if (loading) return <LoadingSpinner />;
@@ -126,86 +193,92 @@ const Wallet = () => {
   return (
     <div className="wallet-container">
       <header className="wallet-header">
-        <h2>💳 My Wallet</h2>
+        <h2>My Wallet</h2>
         <p>Manage your funds and transactions</p>
       </header>
 
-      {/* BALANCE CARD */}
+      {error && (
+        <div className="wallet-error" onClick={() => setError(null)}>
+          {error}
+        </div>
+      )}
+
       <div className="balance-card">
         <h3>Current Balance</h3>
-        <p className="balance-amount">₹{wallet?.balance?.toLocaleString() || 0}</p>
+        <p className="balance-amount">&#8377;{wallet?.balance?.toLocaleString() || 0}</p>
+        {wallet?.pendingWithdrawal > 0 && (
+          <p className="pending-info">
+            &#8377;{wallet.pendingWithdrawal.toLocaleString()} pending withdrawal
+          </p>
+        )}
         <div className="balance-actions">
-          <button className="btn btn-primary" onClick={() => setShowAddFunds(true)}>
+          <button className="btn btn-primary" onClick={() => { setError(null); setShowAddFunds(true); }}>
             + Add Funds
           </button>
           {user?.role === 'coach' && (
-            <button className="btn btn-secondary" onClick={() => setShowWithdrawal(true)}>
+            <button className="btn btn-secondary" onClick={() => { setError(null); setShowWithdrawal(true); }}>
               Request Withdrawal
             </button>
           )}
         </div>
       </div>
 
-      {/* TRANSACTION HISTORY */}
       <section className="transactions-section">
-        <h3>📋 Transaction History</h3>
+        <h3>Transaction History</h3>
         {transactions.length > 0 ? (
           <div className="transactions-list">
             {transactions.map(tx => (
               <div key={tx._id} className="transaction-item">
                 <div className="tx-info">
-                  <p className="tx-desc">{tx.description || tx.type}</p>
+                  <p className="tx-desc">{tx.reason ? getReasonLabel(tx.reason) : tx.description || tx.type}</p>
                   <small>{new Date(tx.createdAt).toLocaleString()}</small>
                 </div>
                 <p className={`tx-amount ${tx.type === 'credit' ? 'credit' : 'debit'}`}>
-                  {tx.type === 'credit' ? '+' : '-'}₹{tx.amount}
+                  {tx.type === 'credit' ? '+' : '-'}&#8377;{tx.amount}
                 </p>
               </div>
             ))}
           </div>
         ) : (
-          <p>No transactions yet</p>
+          <p className="no-data">No transactions yet</p>
         )}
       </section>
 
-      {/* ADD FUNDS MODAL */}
-      <Modal open={showAddFunds} onClose={() => setShowAddFunds(false)}>
+      <Modal open={showAddFunds} onClose={() => { setShowAddFunds(false); setError(null); }}>
         <h3>Add Funds to Wallet</h3>
         <div className="modal-form">
-          <label>Amount (₹)</label>
+          <label>Amount (&#8377;)</label>
           <input
             type="number"
             value={addAmount}
             onChange={(e) => setAddAmount(e.target.value)}
             placeholder="Enter amount"
-            min="100"
+            min="1"
           />
-          <button className="btn btn-primary" onClick={handleAddFunds}>
-            Add Funds
+          <p className="modal-info">You will be redirected to Razorpay to complete payment via UPI, Card, or Net Banking.</p>
+          <button className="btn btn-primary" onClick={handleAddFunds} disabled={processing}>
+            {processing ? "Processing..." : "Pay with Razorpay"}
           </button>
         </div>
       </Modal>
 
-      {/* WITHDRAWAL MODAL */}
-      <Modal open={showWithdrawal} onClose={() => setShowWithdrawal(false)}>
+      <Modal open={showWithdrawal} onClose={() => { setShowWithdrawal(false); setError(null); }}>
         <h3>Request Withdrawal</h3>
         <div className="modal-form">
-          <label>Withdrawal Amount (₹)</label>
+          <label>Withdrawal Amount (&#8377;)</label>
           <input
             type="number"
             value={withdrawAmount}
             onChange={(e) => setWithdrawAmount(e.target.value)}
             placeholder="Enter amount"
-            min="1000"
+            min="1"
           />
 
           <label>Bank Account Number</label>
           <input
             type="text"
             value={bankDetails.accountNumber}
-            onChange={(e) =>
-              setBankDetails({ ...bankDetails, accountNumber: e.target.value })
-            }
+            onChange={(e) => setBankDetails({ ...bankDetails, accountNumber: e.target.value })}
             placeholder="Account number"
           />
 
@@ -213,9 +286,7 @@ const Wallet = () => {
           <input
             type="text"
             value={bankDetails.ifsc}
-            onChange={(e) =>
-              setBankDetails({ ...bankDetails, ifsc: e.target.value })
-            }
+            onChange={(e) => setBankDetails({ ...bankDetails, ifsc: e.target.value })}
             placeholder="IFSC code"
           />
 
@@ -223,14 +294,12 @@ const Wallet = () => {
           <input
             type="text"
             value={bankDetails.accountHolder}
-            onChange={(e) =>
-              setBankDetails({ ...bankDetails, accountHolder: e.target.value })
-            }
-            placeholder="Name"
+            onChange={(e) => setBankDetails({ ...bankDetails, accountHolder: e.target.value })}
+            placeholder="Name as on bank account"
           />
 
-          <button className="btn btn-primary" onClick={handleWithdrawal}>
-            Request Withdrawal
+          <button className="btn btn-primary" onClick={handleWithdrawal} disabled={processing}>
+            {processing ? "Processing..." : "Request Withdrawal"}
           </button>
         </div>
       </Modal>

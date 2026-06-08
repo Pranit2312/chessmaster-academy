@@ -199,4 +199,51 @@ export const analysisAPI = {
   deleteAnalysis: (id) => api.delete(`/analysis/${id}`)
 };
 
+// ======================
+// AI FEATURES (Phase 2)
+// ======================
+export const aiAPI = {
+  // Engine
+  getEngineStatus: () => api.get('/ai/engine/status'),
+  testEngine: () => api.post('/ai/engine/test'),
+
+  // Bot Practice
+  startBotGame: (data) => api.post('/ai/bot/start', data),
+  makeBotMove: (gameId, data) => api.post(`/ai/bot/${gameId}/move`, data),
+  getBotGame: (gameId) => api.get(`/ai/bot/${gameId}`),
+  getBotGames: (params) => api.get('/ai/bot/games', { params }),
+  resignBotGame: (gameId) => api.put(`/ai/bot/${gameId}/resign`),
+  analyzeBotGame: (gameId) => api.post(`/ai/bot/${gameId}/analyze`),
+
+  // Puzzles
+  getDailyPuzzle: () => api.get('/ai/puzzles/daily'),
+  getPuzzles: (params) => api.get('/ai/puzzles', { params }),
+  getPuzzleById: (id) => api.get(`/ai/puzzles/${id}`),
+  solvePuzzle: (id, data) => api.post(`/ai/puzzles/${id}/solve`, data),
+  generatePuzzles: (data) => api.post('/ai/puzzles/generate', data),
+  getPuzzleStats: () => api.get('/ai/puzzles/stats'),
+  syncLichessPuzzles: () => api.post('/ai/puzzles/sync-lichess'),
+
+  // Openings
+  getOpeningRecommendations: (params) => api.get('/ai/openings/recommendations', { params }),
+  exploreOpening: (ecoCode) => api.get(`/ai/openings/explore${ecoCode ? `/${ecoCode}` : ''}`),
+  getOpeningMoves: (ecoCode) => api.get(`/ai/openings/${ecoCode}/moves`),
+  searchOpenings: (params) => api.get('/ai/openings/search', { params }),
+  getUserOpeningStats: () => api.get('/ai/openings/user-stats'),
+
+  // Chat
+  sendChatMessage: (data) => api.post('/ai/chat/send', data),
+  getChatHistory: () => api.get('/ai/chat/history'),
+  getChatById: (id) => api.get(`/ai/chat/${id}`),
+  clearChat: (id) => api.delete(`/ai/chat/${id}`),
+
+  // Insights
+  getWeaknessAnalysis: () => api.get('/ai/insights/weaknesses'),
+  getRecommendations: () => api.get('/ai/insights/recommendations'),
+  getProgressInsights: () => api.get('/ai/insights/progress'),
+  getSkillAssessment: () => api.get('/ai/insights/assessment'),
+  getInsightsSummary: () => api.get('/ai/insights/summary'),
+  dismissInsight: (id) => api.put(`/ai/insights/${id}/dismiss`)
+};
+
 export default api;

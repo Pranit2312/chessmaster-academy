@@ -30,10 +30,20 @@ const transactionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking'
   },
+  razorpayOrderId: {
+    type: String,
+    index: true
+  },
+  razorpayPaymentId: {
+    type: String,
+    index: true
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
+
+transactionSchema.index({ user: 1, razorpayPaymentId: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('Transaction', transactionSchema);

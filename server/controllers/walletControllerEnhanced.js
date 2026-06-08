@@ -12,12 +12,11 @@ const { formatResponse } = require('../utils/helpers');
  * Get wallet details
  */
 exports.getWallet = asyncHandler(async (req, res) => {
-  const wallet = await Wallet.findOne({ userId: req.user.id });
+  const wallet = await Wallet.findOne({ user: req.user.id });
 
   if (!wallet) {
-    // Create wallet if not exists
     const newWallet = await Wallet.create({
-      userId: req.user.id,
+      user: req.user.id,
       balance: 0,
       currency: 'INR'
     });
@@ -37,11 +36,11 @@ exports.addFunds = asyncHandler(async (req, res) => {
     throw new ValidationError('Invalid amount');
   }
 
-  let wallet = await Wallet.findOne({ userId: req.user.id });
+  let wallet = await Wallet.findOne({ user: req.user.id });
 
   if (!wallet) {
     wallet = await Wallet.create({
-      userId: req.user.id,
+      user: req.user.id,
       balance: 0,
       currency: 'INR'
     });
@@ -50,13 +49,11 @@ exports.addFunds = asyncHandler(async (req, res) => {
   wallet.balance += amount;
   await wallet.save();
 
-  // Log transaction
   await Transaction.create({
-    walletId: wallet._id,
+    user: req.user.id,
+    amount: amount,
     type: 'credit',
-    amount,
-    description: `Added funds via ${paymentMethod}`,
-    status: 'completed'
+    reason: 'wallet_topup'
   });
 
   res.json(formatResponse(true, 'Funds added successfully', {
@@ -72,13 +69,13 @@ exports.getTransactionHistory = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, type } = req.query;
   const skip = (page - 1) * limit;
 
-  const wallet = await Wallet.findOne({ userId: req.user.id });
+  const wallet = await Wallet.findOne({ user: req.user.id });
 
   if (!wallet) {
     throw new NotFoundError('Wallet');
   }
 
-  const filter = { walletId: wallet._id };
+  const filter = { user: req.user.id };
   if (type && ['credit', 'debit'].includes(type)) {
     filter.type = type;
   }
@@ -108,7 +105,7 @@ exports.requestWithdrawal = asyncHandler(async (req, res) => {
     throw new ValidationError('Invalid withdrawal amount');
   }
 
-  const wallet = await Wallet.findOne({ userId: req.user.id });
+  const wallet = await Wallet.findOne({ user: req.user.id });
 
   if (!wallet) {
     throw new NotFoundError('Wallet');
@@ -118,9 +115,8 @@ exports.requestWithdrawal = asyncHandler(async (req, res) => {
     throw new ValidationError('Insufficient balance');
   }
 
-  // Check if user has pending withdrawal
   const pendingWithdrawal = await Withdrawal.findOne({
-    userId: req.user.id,
+    coach: req.user.id,
     status: 'pending'
   });
 
@@ -128,10 +124,8 @@ exports.requestWithdrawal = asyncHandler(async (req, res) => {
     throw new ValidationError('You already have a pending withdrawal request');
   }
 
-  // Create withdrawal request
   const withdrawal = await Withdrawal.create({
-    userId: req.user.id,
-    walletId: wallet._id,
+    coach: req.user.id,
     amount,
     bankDetails,
     upiId,
@@ -139,18 +133,15 @@ exports.requestWithdrawal = asyncHandler(async (req, res) => {
     requestedAt: new Date()
   });
 
-  // Mark balance as pending
+  wallet.balance -= amount;
   wallet.pendingWithdrawal = (wallet.pendingWithdrawal || 0) + amount;
   await wallet.save();
 
-  // Log transaction
   await Transaction.create({
-    walletId: wallet._id,
-    type: 'debit',
+    user: req.user.id,
     amount,
-    description: 'Withdrawal request initiated',
-    status: 'pending',
-    withdrawalId: withdrawal._id
+    type: 'debit',
+    reason: 'withdrawal'
   });
 
   res.json(formatResponse(true, 'Withdrawal request created', withdrawal));

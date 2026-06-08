@@ -24,9 +24,21 @@ const Navbar = () => {
             <Link to="/courses" className="nav-links">Courses</Link>
           </li>
           {user && (
-            <li className="nav-item">
-              <Link to="/analysis" className="nav-links">Analysis</Link>
-            </li>
+            <>
+              <li className="nav-item">
+                <Link to="/analysis" className="nav-links">Analysis</Link>
+              </li>
+              <li className="nav-item nav-ai-tools">
+                <span className="nav-links nav-links-ai">AI Tools ▾</span>
+                <ul className="nav-dropdown">
+                  <li><Link to="/ai/practice" className="dropdown-link">🤖 Practice</Link></li>
+                  <li><Link to="/ai/puzzles" className="dropdown-link">🧩 Puzzles</Link></li>
+                  <li><Link to="/ai/openings" className="dropdown-link">📚 Openings</Link></li>
+                  <li><Link to="/ai/coach" className="dropdown-link">💬 AI Coach</Link></li>
+                  <li><Link to="/ai/insights" className="dropdown-link">📊 Insights</Link></li>
+                </ul>
+              </li>
+            </>
           )}
           
           {user ? (

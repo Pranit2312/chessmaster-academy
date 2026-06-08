@@ -23,6 +23,13 @@ import CreateCoursePage from './pages/CreateCoursePage';
 import GameAnalysisPage from './pages/GameAnalysisPage';
 import AnalysisResultPage from './pages/AnalysisResultPage';
 
+// AI Pages (Phase 2)
+import AiPracticePage from './pages/AiPracticePage';
+import AiPuzzlesPage from './pages/AiPuzzlesPage';
+import AiOpeningExplorerPage from './pages/AiOpeningExplorerPage';
+import AiCoachPage from './pages/AiCoachPage';
+import AiInsightsPage from './pages/AiInsightsPage';
+
 // Components
 import Navbar from './components/Navbar';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -246,6 +253,48 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <CoachProfile />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* AI Feature Routes (Phase 2) */}
+        <Route
+          path="/ai/practice"
+          element={
+            <ProtectedRoute>
+              <AiPracticePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ai/puzzles"
+          element={
+            <ProtectedRoute>
+              <AiPuzzlesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ai/openings"
+          element={
+            <ProtectedRoute>
+              <AiOpeningExplorerPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ai/coach"
+          element={
+            <ProtectedRoute>
+              <AiCoachPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ai/insights"
+          element={
+            <ProtectedRoute>
+              <AiInsightsPage />
             </ProtectedRoute>
           }
         />
