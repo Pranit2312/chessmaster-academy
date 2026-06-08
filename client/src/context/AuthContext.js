@@ -64,7 +64,7 @@ export const AuthProvider = ({ children }) => {
     const { data } = await authAPI.login(credentials);
 
     console.log("LOGIN RESPONSE =", data);
-
+// ✅ Store token and user in state and localStorage
     localStorage.setItem('token', data.token);
     setToken(data.token);
     setUser(data.user);
