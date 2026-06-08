@@ -5,7 +5,9 @@ import { enrollmentAPI, bookingAPI, walletAPI, slotAPI } from "../utils/api";
 import LoadingSpinner from "../components/LoadingSpinner";
 import BookingCard from "../components/BookingCard";
 import SlotCard from "../components/SlotCard";
+import StudentAIWidget from "../components/dashboard/StudentAIWidget";
 import "../styles/StudentDashboard.css";
+import "../styles/GameAnalysisPage.css";
 
 const StatCard = ({ icon, value, label }) => (
   <div className="stat-card">
@@ -210,6 +212,9 @@ const StudentDashboard = () => {
             </section>
           )}
 
+          {/* AI GAME ANALYSIS (Phase 2) */}
+          <StudentAIWidget />
+
           {/* AVAILABLE SLOTS */}
           <section className="dashboard-section">
             <div className="section-header">
@@ -277,6 +282,7 @@ const StudentDashboard = () => {
               <li onClick={() => navigate('/my-courses')}>🎓 My Courses</li>
               <li onClick={() => navigate('/my-bookings')}>📅 My Bookings</li>
               <li onClick={() => navigate('/wallet')}>💰 Wallet</li>
+              <li onClick={() => navigate('/analysis')}>♟️ Game Analysis</li>
             </ul>
           </div>
         </aside>

@@ -23,6 +23,7 @@
     "@stripe/stripe-js": "^8.5.3",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
+    "chess.js": "^1.4.0",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
@@ -37,6 +38,7 @@
     "razorpay": "^2.9.6",
     "react-router-dom": "^7.10.1",
     "react-scripts": "^5.0.1",
+    "stockfish": "^18.0.7",
     "stripe": "^20.0.0"
   },
   "devDependencies": {

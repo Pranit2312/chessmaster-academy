@@ -200,7 +200,7 @@ const CoursePlayerPage = () => {
                       <div 
                         key={lesson._id} 
                         className={`lesson-item ${currentLesson?._id === lesson._id ? 'active' : ''} ${progress?.completedLessons?.includes(lesson._id) ? 'completed' : ''}`}
-                        onClick={() => setCurrentLesson(lesson)}
+                        onClick={() => handleLessonClick(lesson)}
                       >
                         <span className="lesson-icon">
                           {lesson.contentType === 'video' ? '▶️' : lesson.contentType === 'article' ? '📄' : '♟️'}

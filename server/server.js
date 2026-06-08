@@ -52,6 +52,7 @@ app.use('/api/wallet', require('./routes/wallet'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api', require('./routes/courses'));
+app.use('/api/analysis', require('./routes/analysis'));
 
 // ======================
 // Test route

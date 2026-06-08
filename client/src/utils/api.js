@@ -188,4 +188,15 @@ export const certificateAPI = {
   downloadCertificate: (enrollmentId) => api.get(`/certificates/${enrollmentId}/download`, { responseType: 'blob' })
 };
 
+// ======================
+// AI GAME ANALYSIS (Phase 2)
+// ======================
+export const analysisAPI = {
+  submitAnalysis: (data) => api.post('/analysis/submit', data),
+  getMyAnalyses: (params) => api.get('/analysis/my-analyses', { params }),
+  getAnalysisById: (id) => api.get(`/analysis/${id}`),
+  getAnalysisStatus: (id) => api.get(`/analysis/${id}/status`),
+  deleteAnalysis: (id) => api.delete(`/analysis/${id}`)
+};
+
 export default api;

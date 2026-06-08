@@ -23,6 +23,11 @@ const Navbar = () => {
           <li className="nav-item">
             <Link to="/courses" className="nav-links">Courses</Link>
           </li>
+          {user && (
+            <li className="nav-item">
+              <Link to="/analysis" className="nav-links">Analysis</Link>
+            </li>
+          )}
           
           {user ? (
             <>

@@ -20,6 +20,8 @@ import CourseDetailPage from './pages/CourseDetailPage';
 import CoursePlayerPage from './pages/CoursePlayerPage';
 import MyCoursesPage from './pages/MyCoursesPage';
 import CreateCoursePage from './pages/CreateCoursePage';
+import GameAnalysisPage from './pages/GameAnalysisPage';
+import AnalysisResultPage from './pages/AnalysisResultPage';
 
 // Components
 import Navbar from './components/Navbar';
@@ -187,6 +189,25 @@ function AppContent() {
           element={
             <ProtectedRoute requiredRole="coach">
               <CreateCoursePage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* AI Game Analysis (Phase 2) */}
+        <Route
+          path="/analysis"
+          element={
+            <ProtectedRoute>
+              <GameAnalysisPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/analysis/:id"
+          element={
+            <ProtectedRoute>
+              <AnalysisResultPage />
             </ProtectedRoute>
           }
         />
