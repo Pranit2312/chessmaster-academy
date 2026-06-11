@@ -6,6 +6,7 @@ import { courseAPI, bookingAPI, walletAPI } from '../utils/api';
 import DailyClassCreation from '../components/DailyClassCreation';
 import Wallet from './Wallet';
 import ProfilePage from './ProfilePage';
+import CoachPuzzleWidget from '../components/dashboard/CoachPuzzleWidget';
 import '../styles/Dashboard.css';
 
 const StatCard = ({ icon, value, label }) => (
@@ -44,8 +45,14 @@ const CoachDashboard = () => {
         walletAPI.getWallet?.() || Promise.resolve({ data: {} })
       ]);
 
-      const coursesArray = coursesRes.data?.data || coursesRes.data?.courses || Array.isArray(coursesRes.data) ? coursesRes.data : [];
-      const bookingsArray = bookingsRes.data?.data || bookingsRes.data?.bookings || Array.isArray(bookingsRes.data) ? bookingsRes.data : [];
+      const coursesArray = Array.isArray(coursesRes.data?.data) ? coursesRes.data.data
+        : Array.isArray(coursesRes.data?.courses) ? coursesRes.data.courses
+        : Array.isArray(coursesRes.data) ? coursesRes.data
+        : [];
+      const bookingsArray = Array.isArray(bookingsRes.data?.data) ? bookingsRes.data.data
+        : Array.isArray(bookingsRes.data?.bookings) ? bookingsRes.data.bookings
+        : Array.isArray(bookingsRes.data) ? bookingsRes.data
+        : [];
       const walletData = walletRes.data?.data || walletRes.data?.wallet || walletRes.data;
 
       setCourses(coursesArray);
@@ -149,6 +156,12 @@ const CoachDashboard = () => {
         >
           Profile
         </button>
+        <button
+          className={`tab-btn ${activeTab === 'puzzles' ? 'active' : ''}`}
+          onClick={() => setActiveTab('puzzles')}
+        >
+          Puzzles
+        </button>
       </div>
 
       {/* OVERVIEW TAB */}
@@ -198,7 +211,7 @@ const CoachDashboard = () => {
                 <div className="mini-courses-list">
                   {courses.slice(0, 3).map(course => (
                     <div key={course._id} className="mini-course-item">
-                      <img src={course.thumbnail || '/default-course.png'} alt={course.title} />
+                      <img src={course.thumbnail || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%23e2e8f0'/%3E%3Ctext x='160' y='90' text-anchor='middle' fill='%2394a3b8' font-size='14'%3ECourse%3C/text%3E%3C/svg%3E"} alt={course.title} />
                       <div className="mini-course-info">
                         <h4>{course.title}</h4>
                         <span>👥 {course.enrollmentCount || 0}</span>
@@ -212,6 +225,9 @@ const CoachDashboard = () => {
               )}
             </section>
           </div>
+
+          {/* PUZZLE PLATFORM WIDGET (Phase 2) */}
+          <CoachPuzzleWidget />
         </div>
       )}
 
@@ -228,7 +244,7 @@ const CoachDashboard = () => {
             <div className="courses-grid">
               {courses.map(course => (
                 <div key={course._id} className="course-card-dashboard">
-                  <img src={course.thumbnail || '/default-course.png'} alt={course.title} />
+                  <img src={course.thumbnail || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%23e2e8f0'/%3E%3Ctext x='160' y='90' text-anchor='middle' fill='%2394a3b8' font-size='14'%3ECourse%3C/text%3E%3C/svg%3E"} alt={course.title} />
                   <h4>{course.title}</h4>
                   <p className="course-category">{course.category}</p>
                   <div className="course-stats">
@@ -301,6 +317,41 @@ const CoachDashboard = () => {
       {activeTab === 'profile' && (
         <section className="dashboard-section">
           <ProfilePage />
+        </section>
+      )}
+
+      {/* PUZZLES TAB */}
+      {activeTab === 'puzzles' && (
+        <section className="dashboard-section">
+          <div className="section-header">
+            <h3>Puzzle Platform</h3>
+            <button onClick={() => navigate('/coach/puzzles/create')} className="btn btn-primary btn-sm">
+              + Create Puzzle
+            </button>
+          </div>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>
+            Create custom puzzles for your students, manage existing ones, and track engagement.
+          </p>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div className="wallet-overview" style={{ flex: 1, minWidth: 180 }}>
+              <div className="wallet-card" style={{ cursor: 'pointer' }} onClick={() => navigate('/puzzles')}>
+                <h3>🧩 Browse Puzzles</h3>
+                <p>Access the full Lichess puzzle database</p>
+              </div>
+            </div>
+            <div className="wallet-overview" style={{ flex: 1, minWidth: 180 }}>
+              <div className="wallet-card" style={{ cursor: 'pointer' }} onClick={() => navigate('/puzzles/rush')}>
+                <h3>⚡ Puzzle Rush</h3>
+                <p>Timed puzzle-solving challenge</p>
+              </div>
+            </div>
+            <div className="wallet-overview" style={{ flex: 1, minWidth: 180 }}>
+              <div className="wallet-card" style={{ cursor: 'pointer' }} onClick={() => navigate('/coach/puzzles/create')}>
+                <h3>✏️ Create Puzzle</h3>
+                <p>Design puzzles for your courses</p>
+              </div>
+            </div>
+          </div>
         </section>
       )}
     </div>

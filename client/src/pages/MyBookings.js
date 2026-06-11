@@ -16,7 +16,8 @@ const MyBookings = () => {
     try {
       setLoading(true);
       const { data } = await bookingAPI.getMyBookings();
-      setBookings(data.bookings || []);
+      const list = data?.bookings || [];
+      setBookings(list);
     } catch (err) {
       console.error("Error fetching bookings:", err);
     } finally {

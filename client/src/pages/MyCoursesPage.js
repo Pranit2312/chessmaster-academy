@@ -18,9 +18,12 @@ const MyCoursesPage = () => {
     try {
       setLoading(true);
       const response = await enrollmentAPI.getMyEnrollments();
-      setEnrollments(response.data || []);
+      const body = response.data;
+      const list = Array.isArray(body) ? body : body?.data || body?.enrollments || [];
+      setEnrollments(Array.isArray(list) ? list : []);
     } catch (error) {
       console.error('Error fetching enrollments:', error);
+      setEnrollments([]);
     } finally {
       setLoading(false);
     }
@@ -40,6 +43,7 @@ const MyCoursesPage = () => {
   };
 
   const getFilteredEnrollments = () => {
+    if (!Array.isArray(enrollments)) return [];
     return enrollments.filter(enrollment => {
       if (filter === 'completed') {
         return enrollment.status === 'completed';
@@ -72,13 +76,13 @@ const MyCoursesPage = () => {
           className={`filter-btn ${filter === 'in-progress' ? 'active' : ''}`}
           onClick={() => setFilter('in-progress')}
         >
-          In Progress ({enrollments.filter(e => e.status === 'in-progress').length})
+          In Progress ({Array.isArray(enrollments) ? enrollments.filter(e => e.status === 'in-progress').length : 0})
         </button>
         <button 
           className={`filter-btn ${filter === 'completed' ? 'active' : ''}`}
           onClick={() => setFilter('completed')}
         >
-          Completed ({enrollments.filter(e => e.status === 'completed').length})
+          Completed ({Array.isArray(enrollments) ? enrollments.filter(e => e.status === 'completed').length : 0})
         </button>
       </div>
 
@@ -109,6 +113,7 @@ const MyCoursesPage = () => {
 };
 
 const EnrollmentCard = ({ enrollment, onContinue, onDownloadCertificate }) => {
+  if (!enrollment) return null;
   const { course, progress, status, enrolledDate } = enrollment;
 
   const getStatusColor = () => {
@@ -123,18 +128,17 @@ const EnrollmentCard = ({ enrollment, onContinue, onDownloadCertificate }) => {
     <div className="enrollment-card">
       <div className="card-image">
         <img 
-          src={course.thumbnail} 
-          alt={course.title}
-        />
+          src={course?.thumbnail || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%23e2e8f0'/%3E%3Ctext x='160' y='90' text-anchor='middle' fill='%2394a3b8' font-size='14'%3ECourse%3C/text%3E%3C/svg%3E"} 
+          alt={course?.title || 'Course'} />
         <span className={`status-badge ${getStatusColor()}`}>
-          {status.toUpperCase()}
+          {(status || '').toUpperCase()}
         </span>
       </div>
 
       <div className="card-content">
-        <h3>{course.title}</h3>
+        <h3>{course?.title || 'Untitled Course'}</h3>
         <p className="course-instructor">
-          By {course.instructor?.name}
+          By {course?.instructor?.name || 'Unknown'}
         </p>
 
         <div className="progress-section">

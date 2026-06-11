@@ -220,6 +220,17 @@ const Wallet = () => {
               Request Withdrawal
             </button>
           )}
+          <button className="btn btn-danger" onClick={async () => {
+            if (window.confirm('Reset wallet balance to zero? This will clear all transactions.')) {
+              try {
+                await walletAPI.resetWallet();
+                fetchWalletData();
+                setError('Wallet reset to zero');
+              } catch { setError('Failed to reset wallet'); }
+            }
+          }}>
+            Reset Wallet
+          </button>
         </div>
       </div>
 
@@ -231,7 +242,7 @@ const Wallet = () => {
               <div key={tx._id} className="transaction-item">
                 <div className="tx-info">
                   <p className="tx-desc">{tx.reason ? getReasonLabel(tx.reason) : tx.description || tx.type}</p>
-                  <small>{new Date(tx.createdAt).toLocaleString()}</small>
+                  <small>{tx.createdAt ? new Date(tx.createdAt).toLocaleString() : '—'}</small>
                 </div>
                 <p className={`tx-amount ${tx.type === 'credit' ? 'credit' : 'debit'}`}>
                   {tx.type === 'credit' ? '+' : '-'}&#8377;{tx.amount}

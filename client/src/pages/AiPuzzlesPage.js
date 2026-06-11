@@ -91,29 +91,11 @@ const AiPuzzlesPage = () => {
     }
   }, [puzzles, currentPuzzle, loadPuzzles]);
 
-  const generateFromAnalysis = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { analysisAPI } = require('../utils/api');
-      const analyses = await analysisAPI.getMyAnalyses({ limit: 5 });
-      const lastAnalysis = analyses.data?.analyses?.[0];
-      if (lastAnalysis) {
-        await aiAPI.generatePuzzles({ analysisId: lastAnalysis._id });
-        loadPuzzles();
-      } else {
-        setError('No analyzed games found. Analyze a game first!');
-      }
-    } catch (err) {
-      setError('Failed to generate puzzles');
-    }
-    setLoading(false);
-  }, [loadPuzzles]);
-
   return (
     <div className="ai-page">
       <div className="ai-page-header">
         <h1>Tactical Puzzles</h1>
-        <p>Sharpen your tactics with puzzles from Lichess and AI analysis</p>
+        <p>Sharpen your tactics with puzzles from Lichess and Chess.com</p>
         <div className="header-actions">
           <button className={`btn ${view === 'browse' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setView('browse')}>
             Browse Puzzles
@@ -124,11 +106,15 @@ const AiPuzzlesPage = () => {
           <button className={`btn ${view === 'stats' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setView('stats')}>
             Stats
           </button>
-          <button className="btn btn-secondary" onClick={generateFromAnalysis} disabled={loading}>
-            From Your Game
+          <button className="btn btn-secondary" onClick={async () => { try { await aiAPI.syncPuzzles({ count: 12 }); loadPuzzles(); } catch { setError('Failed to sync'); } }} disabled={loading}>
+            Sync Puzzles
           </button>
-          <button className="btn btn-secondary" onClick={async () => { try { await aiAPI.syncLichessPuzzles(); loadPuzzles(); } catch { setError('Failed to sync'); } }} disabled={loading}>
-            Sync Lichess
+          <button className="btn btn-danger" onClick={async () => {
+            if (window.confirm('Reset all puzzles and re-seed from scratch?')) {
+              try { await aiAPI.resetPuzzles(); loadPuzzles(); } catch { setError('Failed to reset'); }
+            }
+          }} disabled={loading}>
+            Reset Puzzles
           </button>
         </div>
       </div>

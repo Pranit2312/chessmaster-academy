@@ -52,7 +52,7 @@ const CoursePlayerPage = () => {
       const updatedLessons = [...(progress?.completedLessons || [])];
       if (!updatedLessons.includes(currentLesson._id)) {
         updatedLessons.push(currentLesson._id);
-        const totalLessons = course.chapters.reduce((sum, ch) => sum + ch.lessons.length, 0);
+        const totalLessons = (course.chapters || []).reduce((sum, ch) => sum + (ch.lessons || []).length, 0);
         const newPercentage = Math.round((updatedLessons.length / totalLessons) * 100);
         
         setProgress({
@@ -196,7 +196,7 @@ const CoursePlayerPage = () => {
                 
                 {expandedChapter === index && (
                   <div className="lessons-list-mini">
-                    {chapter.lessons.map(lesson => (
+                    {chapter.lessons?.map(lesson => (
                       <div 
                         key={lesson._id} 
                         className={`lesson-item ${currentLesson?._id === lesson._id ? 'active' : ''} ${progress?.completedLessons?.includes(lesson._id) ? 'completed' : ''}`}

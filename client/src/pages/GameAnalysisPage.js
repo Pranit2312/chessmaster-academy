@@ -46,7 +46,7 @@ const GameAnalysisPage = () => {
           <h2>Your Analyses</h2>
           {loading ? (
             <LoadingSpinner />
-          ) : analyses.length === 0 ? (
+          ) : (analyses || []).length === 0 ? (
             <p className="empty-state">No analyses yet. Submit your first game!</p>
           ) : (
             <div className="analysis-list">

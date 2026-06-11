@@ -32,7 +32,7 @@ const CourseDetailPage = () => {
   const checkEnrollment = useCallback(async () => {
     try {
       const enrollments = await enrollmentAPI.getMyEnrollments();
-      const enrolled = enrollments.data?.some(e => e.course._id === courseId);
+      const enrolled = enrollments.data?.some(e => e.course?._id === courseId);
       setIsEnrolled(enrolled);
     } catch (error) {
       console.error('Error checking enrollment:', error);
@@ -61,7 +61,8 @@ const CourseDetailPage = () => {
           paymentMethod: 'razorpay'
         });
 
-        const { orderId, amount, razorpayKeyId, enrollmentId } = response.data.data;
+        const result = response.data?.data || {};
+        const { orderId, amount, razorpayKeyId, enrollmentId } = result;
 
         // Load Razorpay script
         const script = document.createElement('script');
@@ -232,7 +233,7 @@ const CourseDetailPage = () => {
                         <div className="review-header">
                           <span className="reviewer-name">{review.student?.name}</span>
                           <span className="review-rating">
-                            {'⭐'.repeat(review.rating)}
+                            {'⭐'.repeat(Math.min(5, Math.max(0, Number(review.rating) || 0)))}
                           </span>
                         </div>
                         <p className="review-text">{review.text}</p>

@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { Chess } = require('chess.js');
 const OpeningLibrary = require('../models/OpeningLibrary');
 
 const OPENROUTER_API = 'https://openrouter.ai/api/v1/chat/completions';
@@ -55,6 +56,36 @@ async function getLLMResponse(messages, userContext) {
   }
 }
 
+async function analyzePosition(query) {
+  const fenRegex = /((?:[rnbqkbnrR NBQKBNRPp1-8]+\/){7}[rnbqkbnrR NBQKBNRPp1-8]+\s[wb]\s[KQkq-]+\s[a-h1-8-]+\s\d+\s\d+)/;
+  const match = query.match(fenRegex);
+  if (!match) return null;
+
+  const fen = match[1].trim();
+  try {
+    new Chess(fen);
+    const { analyzeFen } = require('./stockfishEngine');
+    const result = await analyzeFen(fen, 18);
+    if (!result) return null;
+
+    const chess = new Chess(fen);
+    const turn = chess.turn() === 'w' ? 'White' : 'Black';
+    let analysis = `Stockfish analysis of this position (depth ${result.depth}):\n\n`;
+    analysis += `• ${turn} to move\n`;
+    if (result.isMate) {
+      analysis += `• Checkmate in ${result.mateIn} moves for ${result.mateIn > 0 ? turn : (turn === 'White' ? 'Black' : 'White')}\n`;
+    } else {
+      const evalStr = result.evalCp > 0 ? `+${(result.evalCp / 100).toFixed(2)}` : (result.evalCp / 100).toFixed(2);
+      analysis += `• Evaluation: ${evalStr} (${result.evalCp > 150 ? 'White is winning' : result.evalCp > 50 ? 'White is better' : result.evalCp > -50 ? 'Equal position' : result.evalCp > -150 ? 'Black is better' : 'Black is winning'})\n`;
+    }
+    analysis += `• Best move: ${result.bestMoveSan || result.bestMoveUci || 'N/A'}\n`;
+    if (result.pv && result.pv.length > 0) {
+      analysis += `• Main line: ${result.pv.slice(0, 8).join(' ')}\n`;
+    }
+    return analysis;
+  } catch { return null; }
+}
+
 async function getOpeningContext(query) {
   const lower = query.toLowerCase();
   const openingKeywords = ['italian', 'sicilian', 'caro', 'ruy lopez', 'queen\'s gambit', 'london',
@@ -76,6 +107,9 @@ async function generateCoachResponse(userMessage, history, userContext) {
 
   const llmResponse = await getLLMResponse(messages, userContext);
   if (llmResponse) return llmResponse;
+
+  const positionAnalysis = await analyzePosition(userMessage);
+  if (positionAnalysis) return positionAnalysis + '\n\nWould you like me to explain the ideas behind this evaluation or suggest a plan?';
 
   return buildFallbackResponse(userMessage, userContext);
 }

@@ -230,6 +230,7 @@ const courseSchema = new mongoose.Schema({
     default: Date.now
   },
   
+  isFeatured: { type: Boolean, default: false },
   viewCount: {
     type: Number,
     default: 0

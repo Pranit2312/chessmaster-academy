@@ -5,6 +5,7 @@ const Enrollment = require('../models/Enrollment');
 const Progress = require('../models/Progress');
 const User = require('../models/User');
 const { generateSlug, buildCourseFilterQuery, buildSortOptions } = require('../utils/courseValidation');
+const { COURSE_COMMISSION } = require('../config/commission');
 
 // Mock cloudinary for now since it's not in package.json
 const cloudinary = {
@@ -420,8 +421,8 @@ exports.getCourseAnalytics = async (req, res) => {
 
     // Calculate revenue
     const totalRevenue = enrollments.reduce((sum, e) => sum + (e.pricePaid || 0), 0);
-    const platformFee = totalRevenue * 0.25; // 25% platform commission
-    const coachEarnings = totalRevenue * 0.75;
+    const platformFee = totalRevenue * COURSE_COMMISSION;
+    const coachEarnings = totalRevenue * (1 - COURSE_COMMISSION);
 
     // Get progress metrics
     const progressData = await Progress.find({ course: courseId });

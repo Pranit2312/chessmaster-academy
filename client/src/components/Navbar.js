@@ -26,13 +26,22 @@ const Navbar = () => {
           {user && (
             <>
               <li className="nav-item">
+                <Link to="/tournaments" className="nav-links">Tournaments</Link>
+              </li>
+              <li className="nav-item">
                 <Link to="/analysis" className="nav-links">Analysis</Link>
+              </li>
+              <li className="nav-item">
+                <Link to="/puzzles" className="nav-links">Puzzles</Link>
+              </li>
+              <li className="nav-item">
+                <Link to="/forum" className="nav-links">Forum</Link>
               </li>
               <li className="nav-item nav-ai-tools">
                 <span className="nav-links nav-links-ai">AI Tools ▾</span>
                 <ul className="nav-dropdown">
                   <li><Link to="/ai/practice" className="dropdown-link">🤖 Practice</Link></li>
-                  <li><Link to="/ai/puzzles" className="dropdown-link">🧩 Puzzles</Link></li>
+                  <li><Link to="/ai/puzzles" className="dropdown-link">🧩 Puzzles (Old)</Link></li>
                   <li><Link to="/ai/openings" className="dropdown-link">📚 Openings</Link></li>
                   <li><Link to="/ai/coach" className="dropdown-link">💬 AI Coach</Link></li>
                   <li><Link to="/ai/insights" className="dropdown-link">📊 Insights</Link></li>
@@ -41,6 +50,14 @@ const Navbar = () => {
             </>
           )}
           
+          {user && user.role === 'admin' && (
+            <>
+              <li className="nav-item">
+                <Link to="/admin/dashboard" className="nav-links nav-links-admin">Admin</Link>
+              </li>
+            </>
+          )}
+
           {user ? (
             <>
               {user.role === 'student' && (
@@ -57,6 +74,9 @@ const Navbar = () => {
                   <li className="nav-item">
                     <Link to="/my-bookings" className="nav-links">Sessions</Link>
                   </li>
+                  <li className="nav-item">
+                    <Link to="/student/analytics" className="nav-links">Analytics</Link>
+                  </li>
                 </>
               )}
 
@@ -71,9 +91,24 @@ const Navbar = () => {
                   <li className="nav-item">
                     <Link to="/coach/bookings" className="nav-links">Bookings</Link>
                   </li>
+                  <li className="nav-item">
+                    <Link to="/coach/puzzles/create" className="nav-links">Create Puzzle</Link>
+                  </li>
+                  <li className="nav-item">
+                    <Link to="/coach/analytics" className="nav-links">Analytics</Link>
+                  </li>
                 </>
               )}
 
+              <li className="nav-item">
+                <Link to="/play" className="nav-links">Play</Link>
+              </li>
+              <li className="nav-item">
+                <Link to="/my-games" className="nav-links">My Games</Link>
+              </li>
+              <li className="nav-item">
+                <Link to="/friends" className="nav-links">Friends</Link>
+              </li>
               <li className="nav-item">
                 <Link to="/wallet" className="nav-links">Wallet</Link>
               </li>

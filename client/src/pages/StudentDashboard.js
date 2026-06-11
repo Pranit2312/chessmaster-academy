@@ -6,6 +6,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import BookingCard from "../components/BookingCard";
 import SlotCard from "../components/SlotCard";
 import StudentAIWidget from "../components/dashboard/StudentAIWidget";
+import StudentPuzzleWidget from "../components/dashboard/StudentPuzzleWidget";
 import "../styles/StudentDashboard.css";
 import "../styles/GameAnalysisPage.css";
 
@@ -103,7 +104,7 @@ const StudentDashboard = () => {
   };
 
   const handleBookSlot = (slot) => {
-    navigate(`/coach/${slot.coach._id}`, { state: { selectedSlot: slot } });
+    navigate(`/coach/${slot.coach?._id || slot.coach}`, { state: { selectedSlot: slot } });
   };
 
   if (loading) return <LoadingSpinner />;
@@ -160,7 +161,7 @@ const StudentDashboard = () => {
                 {continueLearning.map(enrollment => (
                   <div key={enrollment._id} className="learning-card">
                     <img 
-                      src={enrollment.course?.thumbnail || '/default-course.png'} 
+                      src={enrollment.course?.thumbnail || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%23e2e8f0'/%3E%3Ctext x='160' y='90' text-anchor='middle' fill='%2394a3b8' font-size='14'%3ECourse%3C/text%3E%3C/svg%3E"} 
                       alt={enrollment.course?.title}
                     />
                     <div className="learning-card-info">
@@ -214,6 +215,9 @@ const StudentDashboard = () => {
 
           {/* AI GAME ANALYSIS (Phase 2) */}
           <StudentAIWidget />
+
+          {/* DAILY PUZZLE WIDGET (Phase 2) */}
+          <StudentPuzzleWidget />
 
           {/* AVAILABLE SLOTS */}
           <section className="dashboard-section">

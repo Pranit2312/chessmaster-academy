@@ -113,7 +113,8 @@ export const walletAPI = {
   getCoachEarnings: () => api.get('/wallet/earnings'),
   getTransactions: () => api.get('/wallet/transactions'),
   withdraw: (data) => api.post('/wallet/withdraw', data),
-  requestWithdrawal: (data) => api.post('/wallet/request-withdrawal', data)
+  requestWithdrawal: (data) => api.post('/wallet/request-withdrawal', data),
+  resetWallet: () => api.post('/wallet/reset')
 };
 
 // ======================
@@ -220,9 +221,9 @@ export const aiAPI = {
   getPuzzles: (params) => api.get('/ai/puzzles', { params }),
   getPuzzleById: (id) => api.get(`/ai/puzzles/${id}`),
   solvePuzzle: (id, data) => api.post(`/ai/puzzles/${id}/solve`, data),
-  generatePuzzles: (data) => api.post('/ai/puzzles/generate', data),
   getPuzzleStats: () => api.get('/ai/puzzles/stats'),
-  syncLichessPuzzles: () => api.post('/ai/puzzles/sync-lichess'),
+  syncPuzzles: (params) => api.post('/ai/puzzles/sync', null, { params }),
+  resetPuzzles: () => api.post('/ai/puzzles/reset'),
 
   // Openings
   getOpeningRecommendations: (params) => api.get('/ai/openings/recommendations', { params }),
@@ -244,6 +245,145 @@ export const aiAPI = {
   getSkillAssessment: () => api.get('/ai/insights/assessment'),
   getInsightsSummary: () => api.get('/ai/insights/summary'),
   dismissInsight: (id) => api.put(`/ai/insights/${id}/dismiss`)
+};
+
+// ======================
+// PUZZLE PLATFORM (Phase 2)
+// ======================
+export const puzzleAPI = {
+  getRandom: () => api.get('/puzzles/random'),
+  getDaily: () => api.get('/puzzles/daily'),
+  getByTheme: (theme, params) => api.get(`/puzzles/theme/${theme}`, { params }),
+  getByRating: (range, params) => api.get(`/puzzles/rating/${range}`, { params }),
+  getRecommended: (params) => api.get('/puzzles/recommended', { params }),
+  check: (data) => api.post('/puzzles/check', data),
+  getStats: () => api.get('/puzzles/stats'),
+  getProfile: () => api.get('/puzzles/profile'),
+  markDailySolved: () => api.post('/puzzles/daily/solved'),
+  getHint: (puzzleId) => api.get(`/puzzles/${puzzleId}/hint`),
+
+  // Rush
+  startRush: (data) => api.post('/puzzles/rush/start', data),
+  rushNext: (data) => api.post('/puzzles/rush/next', data),
+  endRush: (sessionId) => api.post(`/puzzles/rush/${sessionId}/end`),
+  rushLeaderboard: (params) => api.get('/puzzles/rush/leaderboard', { params }),
+  rushHistory: () => api.get('/puzzles/rush/history'),
+
+  // Coach
+  createCoachPuzzle: (data) => api.post('/puzzles/coach/create', data),
+  getMyCoachPuzzles: (params) => api.get('/puzzles/coach/mine', { params }),
+  browseCoachPuzzles: (params) => api.get('/puzzles/coach/browse', { params }),
+  getCoachPuzzle: (id) => api.get(`/puzzles/coach/${id}`),
+  updateCoachPuzzle: (id, data) => api.put(`/puzzles/coach/${id}`, data),
+  deleteCoachPuzzle: (id) => api.delete(`/puzzles/coach/${id}`),
+  likeCoachPuzzle: (id) => api.post(`/puzzles/coach/${id}/like`),
+  saveCoachPuzzle: (id) => api.post(`/puzzles/coach/${id}/save`)
+};
+
+// ======================
+// ADMIN
+// ======================
+export const adminAPI = {
+  getOverview: () => api.get('/admin/analytics/overview'),
+  getRevenue: () => api.get('/admin/analytics/revenue'),
+  getGrowth: () => api.get('/admin/analytics/growth'),
+  getUsers: (params) => api.get('/admin/users', { params }),
+  banUser: (id) => api.put(`/admin/users/${id}/ban`),
+  suspendUser: (id, days) => api.put(`/admin/users/${id}/suspend`, { days }),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`),
+  restoreUser: (id) => api.put(`/admin/users/${id}/restore`),
+  getCoaches: (params) => api.get('/admin/coaches', { params }),
+  verifyCoach: (id) => api.put(`/admin/coaches/${id}/verify`),
+  rejectCoach: (id) => api.put(`/admin/coaches/${id}/reject`),
+  featureCoach: (id) => api.put(`/admin/coaches/${id}/feature`),
+  unfeatureCoach: (id) => api.put(`/admin/coaches/${id}/unfeature`),
+  getCourses: (params) => api.get('/admin/courses', { params }),
+  approveCourse: (id) => api.put(`/admin/courses/${id}/approve`),
+  rejectCourse: (id, reason) => api.put(`/admin/courses/${id}/reject`, { reason }),
+  deleteCourse: (id) => api.delete(`/admin/courses/${id}`),
+  getTransactions: (params) => api.get('/admin/payments/transactions', { params }),
+  getPendingWithdrawals: () => api.get('/admin/withdrawals/pending'),
+  approveWithdrawal: (id) => api.put(`/admin/withdrawals/${id}/approve`),
+  rejectWithdrawal: (id) => api.put(`/admin/withdrawals/${id}/reject`)
+};
+
+// ======================
+// TOURNAMENTS
+// ======================
+export const tournamentAPI = {
+  getAll: (params) => api.get('/tournaments', { params }),
+  getActive: () => api.get('/tournaments/active'),
+  getById: (id) => api.get(`/tournaments/${id}`),
+  create: (data) => api.post('/tournaments', data),
+  update: (id, data) => api.put(`/tournaments/${id}`, data),
+  remove: (id) => api.delete(`/tournaments/${id}`),
+  register: (id) => api.post(`/tournaments/${id}/register`),
+  unregister: (id) => api.post(`/tournaments/${id}/unregister`),
+  start: (id) => api.post(`/tournaments/${id}/start`),
+  nextRound: (id) => api.post(`/tournaments/${id}/next-round`),
+  end: (id) => api.post(`/tournaments/${id}/end`),
+  getStandings: (id) => api.get(`/tournaments/${id}/standings`),
+  getPairings: (id) => api.get(`/tournaments/${id}/pairings`),
+  getMy: () => api.get('/tournaments/my'),
+  getStats: () => api.get('/tournaments/stats')
+};
+
+// ======================
+// FORUM
+// ======================
+export const forumAPI = {
+  getDiscussions: (params) => api.get('/forum/discussions', { params }),
+  getDiscussion: (id) => api.get(`/forum/discussions/${id}`),
+  createDiscussion: (data) => api.post('/forum/discussions', data),
+  updateDiscussion: (id, data) => api.put(`/forum/discussions/${id}`, data),
+  deleteDiscussion: (id) => api.delete(`/forum/discussions/${id}`),
+  likeDiscussion: (id) => api.post(`/forum/discussions/${id}/like`),
+  getReplies: (id, params) => api.get(`/forum/discussions/${id}/replies`, { params }),
+  createReply: (id, data) => api.post(`/forum/discussions/${id}/replies`, data),
+  updateReply: (id, data) => api.put(`/forum/replies/${id}`, data),
+  deleteReply: (id) => api.delete(`/forum/replies/${id}`),
+  markSolution: (id) => api.post(`/forum/replies/${id}/solution`),
+  likeReply: (id) => api.post(`/forum/replies/${id}/like`)
+};
+
+// ======================
+// NOTIFICATIONS
+// ======================
+export const notificationAPI = {
+  getAll: (params) => api.get('/notifications', { params }),
+  markRead: (id) => api.put(`/notifications/${id}/read`),
+  markAllRead: () => api.put('/notifications/read-all'),
+  getUnreadCount: () => api.get('/notifications/unread-count')
+};
+
+// ======================
+// ACHIEVEMENTS
+// ======================
+export const achievementAPI = {
+  getMine: () => api.get('/achievements/mine'),
+  getAll: () => api.get('/achievements')
+};
+
+// ======================
+// GAMES
+// ======================
+export const gameAPI = {
+  getById: (id) => api.get(`/games/${id}`),
+  getMy: (params) => api.get('/games/my', { params }),
+  getActive: () => api.get('/games/active'),
+  getLive: () => api.get('/games/live'),
+  getRating: () => api.get('/games/rating'),
+  getLeaderboard: (params) => api.get('/games/leaderboard', { params }),
+  getReplay: (id) => api.get(`/games/${id}/replay`),
+  analyze: (id) => api.post(`/games/${id}/analyze`),
+  getOpponent: (username) => api.get(`/games/opponent/${username}`),
+  getFriends: () => api.get('/games/friends'),
+  getFriendRequests: () => api.get('/games/friends/pending'),
+  sendFriendRequest: (id) => api.post('/games/friends/request', { recipientId: id }),
+  acceptFriendRequest: (id) => api.put(`/games/friends/accept/${id}`),
+  rejectFriendRequest: (id) => api.put(`/games/friends/reject/${id}`),
+  removeFriend: (id) => api.delete(`/games/friends/${id}`),
+  searchUsers: (q) => api.get('/games/friends/search', { params: { q } })
 };
 
 export default api;

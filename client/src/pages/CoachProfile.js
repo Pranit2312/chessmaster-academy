@@ -31,9 +31,9 @@ const CoachProfile = () => {
         reviewAPI.getCoachReviews(id)
       ]);
 
-      setCoach(coachRes.data.coach);
-      setSlots(slotsRes.data.slots);
-      setReviews(reviewsRes.data.reviews);
+      setCoach(coachRes.data?.coach || null);
+      setSlots(slotsRes.data?.slots || []);
+      setReviews(reviewsRes.data?.reviews || []);
     } catch (error) {
       console.error('Error fetching coach data:', error);
     } finally {
@@ -134,6 +134,15 @@ const CoachProfile = () => {
         theme: { color: "#2563eb" }
       };
 
+      if (!window.Razorpay) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.body.appendChild(script);
+        });
+      }
       const razorpay = new window.Razorpay(options);
       razorpay.open();
 
@@ -187,7 +196,7 @@ const CoachProfile = () => {
 
       <div className="coach-header">
         <div className="coach-avatar">
-          {coach.name.charAt(0).toUpperCase()}
+          {coach.name?.charAt(0)?.toUpperCase() || '?'}
         </div>
 
         <div className="coach-info">

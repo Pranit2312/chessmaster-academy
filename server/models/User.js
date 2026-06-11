@@ -72,8 +72,17 @@ const userSchema = new mongoose.Schema({
   totalSessions: { type: Number, default: 0 },
 
   isActive: { type: Boolean, default: true },
+  isVerified: { type: Boolean, default: false },
+  isFeatured: { type: Boolean, default: false },
+  bannedAt: { type: Date, default: null },
+  suspendedUntil: { type: Date, default: null },
+  tournamentRating: { type: Number, default: 1200 },
+  tournamentsPlayed: { type: Number, default: 0 },
+  tournamentsWon: { type: Number, default: 0 },
+  podiumFinishes: { type: Number, default: 0 },
+  bestFinish: { type: String, default: '' },
+  totalPrizeMoney: { type: Number, default: 0 },
 
-  // ⭐️ ADD THIS FIELD
   slots: [
     {
       type: mongoose.Schema.Types.ObjectId,

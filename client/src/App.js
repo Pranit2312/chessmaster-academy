@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -23,12 +24,33 @@ import CreateCoursePage from './pages/CreateCoursePage';
 import GameAnalysisPage from './pages/GameAnalysisPage';
 import AnalysisResultPage from './pages/AnalysisResultPage';
 
+// Puzzle Platform Pages (Phase 2)
+import PuzzlesPage from './pages/PuzzlesPage';
+import PuzzleRushPage from './pages/PuzzleRushPage';
+import CoachPuzzleCreator from './pages/CoachPuzzleCreator';
+
 // AI Pages (Phase 2)
 import AiPracticePage from './pages/AiPracticePage';
 import AiPuzzlesPage from './pages/AiPuzzlesPage';
 import AiOpeningExplorerPage from './pages/AiOpeningExplorerPage';
 import AiCoachPage from './pages/AiCoachPage';
 import AiInsightsPage from './pages/AiInsightsPage';
+
+// Phase 3 Pages
+import AdminDashboard from './pages/AdminDashboard';
+import TournamentsPage from './pages/TournamentsPage';
+import TournamentDetailPage from './pages/TournamentDetailPage';
+import ForumPage from './pages/ForumPage';
+import ForumDetailPage from './pages/ForumDetailPage';
+import StudentAnalytics from './pages/StudentAnalytics';
+import CoachAnalytics from './pages/CoachAnalytics';
+
+// Phase 4 Pages
+import PlayPage from './pages/PlayPage';
+import GamePage from './pages/GamePage';
+import GameReplayPage from './pages/GameReplayPage';
+import MyGamesPage from './pages/MyGamesPage';
+import FriendsPage from './pages/FriendsPage';
 
 // Components
 import Navbar from './components/Navbar';
@@ -200,6 +222,32 @@ function AppContent() {
           }
         />
 
+        {/* Puzzle Platform Routes (Phase 2) */}
+        <Route
+          path="/puzzles"
+          element={
+            <ProtectedRoute>
+              <PuzzlesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/puzzles/rush"
+          element={
+            <ProtectedRoute>
+              <PuzzleRushPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/coach/puzzles/create"
+          element={
+            <ProtectedRoute requiredRole="coach">
+              <CoachPuzzleCreator />
+            </ProtectedRoute>
+          }
+        />
+
         {/* AI Game Analysis (Phase 2) */}
         <Route
           path="/analysis"
@@ -299,6 +347,112 @@ function AppContent() {
           }
         />
 
+        {/* Phase 3: Admin */}
+        <Route
+          path="/admin/dashboard"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Phase 3: Tournaments */}
+        <Route
+          path="/tournaments"
+          element={
+            <ProtectedRoute>
+              <TournamentsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tournaments/:id"
+          element={
+            <ProtectedRoute>
+              <TournamentDetailPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Phase 3: Analytics */}
+        <Route
+          path="/student/analytics"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <StudentAnalytics />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/coach/analytics"
+          element={
+            <ProtectedRoute requiredRole="coach">
+              <CoachAnalytics />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Phase 3: Forum */}
+        <Route
+          path="/forum"
+          element={
+            <ProtectedRoute>
+              <ForumPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/forum/:id"
+          element={
+            <ProtectedRoute>
+              <ForumDetailPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Phase 4: Live Play */}
+        <Route
+          path="/play"
+          element={
+            <ProtectedRoute>
+              <PlayPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/play/:gameId"
+          element={
+            <ProtectedRoute>
+              <GamePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/play/:gameId/replay"
+          element={
+            <ProtectedRoute>
+              <GameReplayPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-games"
+          element={
+            <ProtectedRoute>
+              <MyGamesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/friends"
+          element={
+            <ProtectedRoute>
+              <FriendsPage />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
@@ -309,9 +463,11 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
+      <SocketProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </SocketProvider>
     </AuthProvider>
   );
 }

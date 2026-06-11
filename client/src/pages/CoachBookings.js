@@ -15,7 +15,7 @@ const CoachBookings = () => {
   const fetchBookings = async () => {
     try {
       const { data } = await bookingAPI.getCoachBookings();
-      setBookings(data.bookings);
+      setBookings(data?.bookings || []);
     } catch (error) {
       console.error('Error fetching bookings:', error);
     } finally {

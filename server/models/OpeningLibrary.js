@@ -96,6 +96,14 @@ const openingLibrarySchema = new mongoose.Schema({
     topPlayerUsageCount: Number
   },
   
+  // Marketplace fields
+  isMarketplace: { type: Boolean, default: false },
+  price: { type: Number, default: 0 },
+  instructor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  fileUrls: [{ title: String, type: { type: String, enum: ['pgn', 'video', 'pdf'] }, url: String }],
+  enrollmentCount: { type: Number, default: 0 },
+  averageRating: { type: Number, default: 0, min: 0, max: 5 },
+  
   // Tags & Metadata
   tags: [String],
   difficulty: {

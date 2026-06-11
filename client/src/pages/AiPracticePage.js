@@ -34,13 +34,16 @@ const AiPracticePage = () => {
     setGameResult(null);
     try {
       const res = await aiAPI.startBotGame({ difficulty, playerColor });
-      setGame(res.data.game);
-      setFen(res.data.game.fen);
-      setMoves(res.data.game.moves || []);
-      setGameState('playing');
-      if (res.data.game.moves?.length > 0 && playerColor === 'b') {
-        setFen(res.data.game.moves[res.data.game.moves.length - 1].fen);
+      const gameData = res.data?.game;
+      if (gameData) {
+        setGame(gameData);
+        setFen(gameData.fen);
+        setMoves(gameData.moves || []);
+        if (gameData.moves?.length > 0 && playerColor === 'b') {
+          setFen(gameData.moves[gameData.moves.length - 1].fen);
+        }
       }
+      setGameState('playing');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to start game');
     }
@@ -84,7 +87,8 @@ const AiPracticePage = () => {
   const loadGame = useCallback(async (gameId) => {
     try {
       const res = await aiAPI.getBotGame(gameId);
-      const g = res.data.game;
+      const g = res.data?.game;
+      if (!g) return;
       setGame(g); setFen(g.fen); setMoves(g.moves || []);
       setDifficulty(g.difficulty); setPlayerColor(g.playerColor);
       setGameResult(g.result === 'playing' ? null : g.result);

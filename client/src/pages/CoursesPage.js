@@ -209,7 +209,8 @@ const PaymentModal = ({ course, onClose, onSuccess }) => {
         paymentMethod: 'razorpay'
       });
 
-      const { orderId, amount, razorpayKeyId, enrollmentId } = response.data.data;
+      const result = response.data?.data || {};
+      const { orderId, amount, razorpayKeyId, enrollmentId } = result;
 
       // Load Razorpay script
       const script = document.createElement('script');

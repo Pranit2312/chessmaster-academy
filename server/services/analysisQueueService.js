@@ -1,11 +1,42 @@
+const Game = require('../models/Game');
 const { StockfishAnalysis } = require('../models/Analysis');
 const { analyzeGame } = require('./stockfishService');
+const logger = require('../utils/logger');
 
 let isProcessing = false;
 
-/**
- * Process the next queued analysis job.
- */
+async function queueGameAnalysis(gameId) {
+  try {
+    const game = await Game.findById(gameId);
+    if (!game || !game.pgn) {
+      logger.warn('Cannot enqueue analysis: game or PGN missing', { gameId });
+      return { processed: false, reason: 'missing_pgn' };
+    }
+
+    const existing = await StockfishAnalysis.findOne({
+      gameId: String(gameId),
+      status: { $in: ['queued', 'analyzing', 'completed'] }
+    });
+    if (existing) {
+      logger.info('Analysis already queued/completed', { gameId });
+      return { processed: true, analysisId: existing._id, cached: true };
+    }
+
+    const analysis = await StockfishAnalysis.create({
+      gameId: String(gameId),
+      pgn: game.pgn,
+      depth: 22,
+      status: 'queued'
+    });
+
+    logger.info('Game analysis queued', { gameId, analysisId: analysis._id });
+    return { processed: true, analysisId: analysis._id };
+  } catch (err) {
+    logger.error('Failed to queue game analysis', err.message);
+    return { processed: false, reason: err.message };
+  }
+}
+
 async function processNextInQueue() {
   if (isProcessing) return { processed: false, reason: 'busy' };
 
@@ -36,21 +67,19 @@ async function processNextInQueue() {
 
     await job.save();
 
+    logger.info('Analysis completed', { analysisId: job._id, gameId: job.gameId });
     return { processed: true, analysisId: job._id };
   } catch (error) {
     job.status = 'failed';
     job.completedAt = new Date();
     await job.save();
-    console.error('Analysis queue error:', error.message);
+    logger.error('Analysis queue error', error.message);
     return { processed: false, reason: 'failed', error: error.message };
   } finally {
     isProcessing = false;
   }
 }
 
-/**
- * Process multiple queued jobs (used by cron).
- */
 async function processQueueBatch(batchSize = 3) {
   const results = [];
   const limit = parseInt(process.env.ANALYSIS_QUEUE_BATCH_SIZE, 10) || batchSize;
@@ -67,6 +96,7 @@ async function processQueueBatch(batchSize = 3) {
 }
 
 module.exports = {
+  queueGameAnalysis,
   processNextInQueue,
   processQueueBatch
 };

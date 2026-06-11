@@ -1,28 +1,24 @@
-# Use official Node runtime
-FROM node:18-alpine
+FROM node:20-alpine AS client-build
+WORKDIR /client
+COPY client/package*.json ./
+RUN npm ci
+COPY client/ ./
+RUN npm run build
 
-# Set working directory
+FROM node:20-alpine AS server-build
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
+RUN npm ci --omit=dev
+COPY server/ server/
+COPY --from=client-build /client/build/ client/build/
 
-# Install dependencies
-RUN npm ci --only=production
+EXPOSE 5005
 
-# Copy application code
-COPY . .
+ENV NODE_ENV=production
+ENV PORT=5005
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
-USER nodejs
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:5005/health || exit 1
 
-# Expose port
-EXPOSE 5000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:5000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
-
-# Start application
+USER node
 CMD ["node", "server/server.js"]

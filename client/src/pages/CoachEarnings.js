@@ -22,7 +22,8 @@ const CoachEarnings = () => {
       ]);
 
       setEarnings(earningsRes.data);
-      setTransactions(transRes.data || []);
+      const txData = transRes.data;
+      setTransactions(Array.isArray(txData) ? txData : txData?.data || []);
     } catch (err) {
       console.error("Error fetching earnings:", err);
     } finally {
@@ -31,6 +32,7 @@ const CoachEarnings = () => {
   };
 
   const getFilteredTransactions = () => {
+    if (!Array.isArray(transactions)) return [];
     switch (filter) {
       case "pending":
         return transactions.filter(t => t.status === "pending");

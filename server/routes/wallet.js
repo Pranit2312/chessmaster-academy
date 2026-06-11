@@ -11,7 +11,8 @@ const {
   requestWithdrawal,
   getTransactions,
   createTopupOrder,
-  verifyTopupPayment
+  verifyTopupPayment,
+  resetWallet
 } = require('../controllers/walletController');
 
 router.get('/me', protect, getMyWallet);
@@ -29,5 +30,7 @@ router.get('/earnings',protect,restrictTo('coach'),getCoachEarnings);
 
 router.post('/withdraw',protect,restrictTo('coach'),requestWithdrawal);
 router.post('/request-withdrawal',protect,restrictTo('coach'),requestWithdrawal);
+
+router.post('/reset', protect, resetWallet);
 
 module.exports = router;

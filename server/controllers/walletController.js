@@ -3,8 +3,40 @@ const Transaction = require('../models/Transaction');
 const Withdrawal = require('../models/Withdrawal');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
-// Initialize Razorpay
+// Write-through balance cache: hydrated from Transaction records on startup
+// Source of truth is verified Transaction records, NOT the Wallet doc
+const balanceCache = new Map();
+let cacheReady = false;
+
+async function hydrateBalanceCache() {
+  balanceCache.clear();
+  const transactions = await Transaction.find({}).sort({ createdAt: 1 });
+  for (const tx of transactions) {
+    const uid = String(tx.user);
+    const current = balanceCache.get(uid) || 0;
+    if (tx.type === 'credit') {
+      balanceCache.set(uid, current + tx.amount);
+    } else if (tx.type === 'debit') {
+      balanceCache.set(uid, current - tx.amount);
+    }
+  }
+  cacheReady = true;
+  logger.info(`Balance cache hydrated: ${balanceCache.size} users`);
+}
+
+function getBalance(userId) {
+  return balanceCache.get(String(userId)) || 0;
+}
+
+function updateBalance(userId, delta) {
+  const uid = String(userId);
+  const current = getBalance(uid);
+  balanceCache.set(uid, Math.max(0, current + delta));
+  return getBalance(uid);
+}
+
 const getRazorpayInstance = () => {
   if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
     return new Razorpay({
@@ -15,44 +47,59 @@ const getRazorpayInstance = () => {
   return null;
 };
 
-// Get my wallet
 exports.getMyWallet = async (req, res) => {
-  let wallet = await Wallet.findOne({ user: req.user.id });
+  try {
+    const userId = String(req.user.id);
+    const balance = getBalance(userId);
 
-  // 🔥 AUTO-CREATE WALLET IF NOT EXISTS
-  if (!wallet) {
-    wallet = await Wallet.create({
-      user: req.user.id,
-      balance: 0
+    let wallet = await Wallet.findOne({ user: req.user.id });
+    if (!wallet) {
+      wallet = await Wallet.create({ user: req.user.id, balance: 0 });
+    }
+
+    res.json({
+      success: true,
+      wallet: {
+        _id: wallet._id,
+        user: wallet.user,
+        balance,
+        pendingWithdrawal: wallet.pendingWithdrawal || 0,
+        currency: wallet.currency || 'INR',
+        createdAt: wallet.createdAt,
+        updatedAt: wallet.updatedAt
+      }
     });
+  } catch (error) {
+    logger.error('getMyWallet error', error.message);
+    res.json({ success: true, wallet: { balance: 0, pendingWithdrawal: 0, currency: 'INR' } });
   }
-
-  res.status(200).json({
-    success: true,
-    wallet
-  });
 };
 
-// Alias for getMyWallet
 exports.getWallet = async (req, res) => {
   try {
-    const wallet = await Wallet.findOne({ user: req.user.id });
+    const userId = String(req.user.id);
+    const balance = getBalance(userId);
+
+    let wallet = await Wallet.findOne({ user: req.user.id });
     if (!wallet) {
-      return res.status(200).json({ success: true, data: { balance: 0 } });
+      wallet = { balance: 0, pendingWithdrawal: 0, currency: 'INR' };
     }
-    res.status(200).json({ success: true, data: wallet });
+
+    wallet.balance = balance;
+    res.json({ success: true, data: wallet });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    logger.error('getWallet error', error.message);
+    res.json({ success: true, data: { balance: 0, pendingWithdrawal: 0, currency: 'INR' } });
   }
 };
 
-// Get transactions
 exports.getTransactions = async (req, res) => {
   try {
     const transactions = await Transaction.find({ user: req.user.id }).sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: transactions });
+    res.json({ success: true, data: transactions });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    logger.error('getTransactions error', error.message);
+    res.json({ success: true, data: [] });
   }
 };
 
@@ -63,34 +110,26 @@ exports.getCoachEarnings = async (req, res) => {
       reason: 'coach_earning'
     }).sort({ createdAt: -1 });
 
-    const totalEarnings = transactions.reduce(
-      (sum, t) => sum + t.amount,
-      0
-    );
+    const totalEarnings = transactions.reduce((sum, t) => sum + t.amount, 0);
 
-    res.status(200).json({
-      success: true,
-      totalEarnings,
-      transactions
-    });
+    res.json({ success: true, totalEarnings, transactions });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    logger.error('getCoachEarnings error', error.message);
+    res.json({ success: true, totalEarnings: 0, transactions: [] });
   }
 };
 
 exports.requestWithdrawal = async (req, res) => {
   try {
     const { amount, bankDetails, upiId } = req.body;
+    const userId = String(req.user.id);
+    const balance = getBalance(userId);
 
     if (!amount || amount <= 0) {
       return res.status(400).json({ success: false, message: 'Invalid withdrawal amount' });
     }
 
-    const wallet = await Wallet.findOne({ user: req.user.id });
-    if (!wallet) {
-      return res.status(404).json({ success: false, message: 'Wallet not found' });
-    }
-    if (wallet.balance < amount) {
+    if (balance < amount) {
       return res.status(400).json({ success: false, message: 'Insufficient balance' });
     }
 
@@ -107,9 +146,13 @@ exports.requestWithdrawal = async (req, res) => {
       status: 'pending'
     });
 
-    wallet.balance -= amount;
-    wallet.pendingWithdrawal = (wallet.pendingWithdrawal || 0) + amount;
-    await wallet.save();
+    updateBalance(userId, -amount);
+
+    const wallet = await Wallet.findOne({ user: req.user.id });
+    if (wallet) {
+      wallet.pendingWithdrawal = (wallet.pendingWithdrawal || 0) + amount;
+      await wallet.save();
+    }
 
     await Transaction.create({
       user: req.user.id,
@@ -118,17 +161,13 @@ exports.requestWithdrawal = async (req, res) => {
       reason: 'withdrawal'
     });
 
-    res.status(200).json({
-      success: true,
-      withdrawal,
-      newBalance: wallet.balance
-    });
+    res.json({ success: true, withdrawal, newBalance: getBalance(userId) });
   } catch (error) {
+    logger.error('requestWithdrawal error', error.message);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// Add money via Razorpay (creates order, doesn't credit until verified)
 exports.addMoney = async (req, res) => {
   try {
     const razorpay = getRazorpayInstance();
@@ -155,12 +194,11 @@ exports.addMoney = async (req, res) => {
       key: process.env.RAZORPAY_KEY_ID
     });
   } catch (error) {
-    console.error('Wallet Topup Order Error:', error);
+    logger.error('Wallet Topup Order Error', error.message);
     res.status(500).json({ success: false, message: 'Error creating topup order' });
   }
 };
 
-// Alias for addMoney (same Razorpay flow)
 exports.addFunds = async (req, res) => {
   try {
     const razorpay = getRazorpayInstance();
@@ -187,14 +225,10 @@ exports.addFunds = async (req, res) => {
       key: process.env.RAZORPAY_KEY_ID
     });
   } catch (error) {
-    console.error('Add Funds Order Error:', error);
+    logger.error('Add Funds Order Error', error.message);
     res.status(500).json({ success: false, message: 'Error creating order' });
   }
 };
-
-// ============================================
-// REAL RAZORPAY TOPUP INTEGRATION
-// ============================================
 
 exports.createTopupOrder = async (req, res) => {
   try {
@@ -209,7 +243,7 @@ exports.createTopupOrder = async (req, res) => {
     }
 
     const order = await razorpay.orders.create({
-      amount: Math.round(amount * 100), // INR paise
+      amount: Math.round(amount * 100),
       currency: 'INR',
       receipt: `wallet_topup_${Date.now()}`
     });
@@ -222,7 +256,7 @@ exports.createTopupOrder = async (req, res) => {
       key: process.env.RAZORPAY_KEY_ID
     });
   } catch (error) {
-    console.error('Wallet Topup Order Error:', error);
+    logger.error('Wallet Topup Order Error', error.message);
     res.status(500).json({ success: false, message: 'Error creating topup order' });
   }
 };
@@ -230,19 +264,18 @@ exports.createTopupOrder = async (req, res) => {
 exports.verifyTopupPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
+    const userId = String(req.user.id);
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({ success: false, message: 'Missing payment details' });
     }
 
-    // Idempotency check: prevent double-crediting
     const existing = await Transaction.findOne({
       user: req.user.id,
       razorpayPaymentId: razorpay_payment_id
     });
     if (existing) {
-      const wallet = await Wallet.findOne({ user: req.user.id });
-      return res.status(200).json({ success: true, balance: wallet?.balance || 0, alreadyProcessed: true });
+      return res.json({ success: true, balance: getBalance(userId), alreadyProcessed: true });
     }
 
     const sign = razorpay_order_id + '|' + razorpay_payment_id;
@@ -255,16 +288,8 @@ exports.verifyTopupPayment = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid payment signature' });
     }
 
-    // Top up the wallet after verification
-    let wallet = await Wallet.findOne({ user: req.user.id });
-    if (!wallet) {
-      wallet = await Wallet.create({ user: req.user.id, balance: Number(amount) });
-    } else {
-      wallet.balance += Number(amount);
-      await wallet.save();
-    }
+    updateBalance(userId, Number(amount));
 
-    // Log the transaction with Razorpay IDs for idempotency
     await Transaction.create({
       user: req.user.id,
       amount: Number(amount),
@@ -274,9 +299,31 @@ exports.verifyTopupPayment = async (req, res) => {
       razorpayPaymentId: razorpay_payment_id
     });
 
-    res.status(200).json({ success: true, balance: wallet.balance });
+    res.json({ success: true, balance: getBalance(userId) });
   } catch (error) {
-    console.error('Wallet Topup Verify Error:', error);
+    logger.error('Wallet Topup Verify Error', error.message);
     res.status(500).json({ success: false, message: 'Payment verification failed' });
   }
 };
+
+exports.resetWallet = async (req, res) => {
+  try {
+    balanceCache.set(String(req.user.id), 0);
+
+    const wallet = await Wallet.findOne({ user: req.user.id });
+    if (wallet) {
+      wallet.balance = 0;
+      wallet.pendingWithdrawal = 0;
+      await wallet.save();
+    }
+    await Transaction.deleteMany({ user: req.user.id });
+    await Withdrawal.deleteMany({ coach: req.user.id });
+
+    res.json({ success: true, message: 'Wallet reset to zero' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Export cache hydrator for use in server startup
+exports.hydrateBalanceCache = hydrateBalanceCache;

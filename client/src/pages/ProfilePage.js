@@ -123,7 +123,7 @@ const ProfilePage = () => {
     <div className="profile-container">
       <header className="profile-header">
         <div className="profile-avatar">
-          <img src={profile?.avatar || "/default-avatar.png"} alt="Profile" />
+          <img src={profile?.avatar || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect width='200' height='200' fill='%23e2e8f0'/%3E%3Ccircle cx='100' cy='75' r='35' fill='%2394a3b8'/%3E%3Cpath d='M30 190c0-40 31-70 70-70s70 30 70 70' fill='%2394a3b8'/%3E%3C/svg%3E"} alt="Profile" />
         </div>
         <div className="profile-info">
           <h2>{profile?.name}</h2>

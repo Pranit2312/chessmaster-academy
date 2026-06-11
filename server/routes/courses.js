@@ -249,8 +249,6 @@ router.post(
   enrollmentController.generateCertificate
 );
 
-module.exports = router;
-
 // Verify certificate (GET - Public)
 router.get(
   '/certificates/:certificateNumber/verify',

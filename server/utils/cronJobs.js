@@ -1,7 +1,8 @@
 const cron = require('node-cron');
 const autoCompleteSessions = require('./autoCompleteSessions');
 const processAnalysisQueue = require('../jobs/processAnalysisQueue');
-const { syncPuzzlesFromLichess } = require('../services/lichessService');
+const puzzleApi = require('../services/puzzleApiService');
+const AiPuzzle = require('../models/AiPuzzle');
 
 module.exports = () => {
   cron.schedule('*/1 * * * *', async () => {
@@ -12,12 +13,23 @@ module.exports = () => {
     await processAnalysisQueue();
   });
 
-  // Sync puzzles from Lichess every 6 hours
   cron.schedule('0 */6 * * *', async () => {
     try {
-      await syncPuzzlesFromLichess(50);
+      const batch = await puzzleApi.fetchPuzzleBatch(15);
+      let created = 0;
+      for (const p of batch) {
+        const exists = await AiPuzzle.findOne({ fen: p.fen });
+        if (!exists) { await AiPuzzle.create(p); created++; }
+      }
+      console.log(`Cron synced ${created} puzzles`);
+
+      const daily = await puzzleApi.fetchDailyPuzzle();
+      if (daily) {
+        const exists = await AiPuzzle.findOne({ fen: daily.fen });
+        if (!exists) { await AiPuzzle.create(daily); created++; }
+      }
     } catch (err) {
-      console.error('Lichess puzzle cron sync failed:', err.message);
+      console.warn('Puzzle cron sync failed:', err.message);
     }
   });
 };

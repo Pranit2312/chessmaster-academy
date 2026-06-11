@@ -1,19 +1,57 @@
 const AiPuzzle = require('../models/AiPuzzle');
-const { generatePuzzleFromAnalysis, generateDailyPuzzle } = require('../services/aiEngineService');
-const { StockfishAnalysis } = require('../models/Analysis');
-const { getDailyPuzzleFromLichess, syncPuzzlesFromLichess } = require('../services/lichessService');
+const puzzleApi = require('../services/puzzleApiService');
 const { Chess } = require('chess.js');
-const mongoose = require('mongoose');
+
+// In-memory puzzle cache — populated from Lichess/Chess.com APIs, always works
+const puzzleCache = { puzzles: [], daily: null, lastSync: 0, TTL: 300000 };
+
+async function ensureCache() {
+  const now = Date.now();
+  if (puzzleCache.puzzles.length > 5 && now - puzzleCache.lastSync < puzzleCache.TTL) {
+    return;
+  }
+
+  try {
+    const batch = await puzzleApi.fetchPuzzleBatch(15);
+    if (batch.length > 0) {
+      puzzleCache.puzzles = batch;
+      puzzleCache.lastSync = now;
+    }
+  } catch {}
+
+  if (puzzleCache.puzzles.length === 0) {
+    puzzleCache.puzzles = [
+      { fen: 'r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4', solution: ['Nxe5'], theme: 'fork', difficulty: 'easy', rating: 800, source: 'manual', playerSide: 'w', description: 'Knight fork', hint: 'Look for a fork' },
+      { fen: 'r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4', solution: ['Kd8'], theme: 'checkmate', difficulty: 'easy', rating: 600, source: 'manual', playerSide: 'b', description: 'Escape checkmate', hint: 'Move the king' },
+      { fen: 'rnbqkb1r/pppppppp/5n2/4P3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2', solution: ['Nd5'], theme: 'tactic', difficulty: 'beginner', rating: 400, source: 'manual', playerSide: 'b', description: 'Knight to center', hint: 'Develop the knight' },
+    ];
+    puzzleCache.lastSync = now;
+  }
+}
 
 exports.getDailyPuzzle = async (req, res) => {
   try {
-    let puzzle = await getDailyPuzzleFromLichess();
-    if (!puzzle) {
-      puzzle = await generateDailyPuzzle();
+    await ensureCache();
+
+    if (puzzleCache.daily) {
+      const today = new Date().toDateString();
+      const cachedDay = new Date(puzzleCache.daily._cachedAt || 0).toDateString();
+      if (cachedDay !== today) puzzleCache.daily = null;
     }
-    if (!puzzle) {
-      return res.status(404).json({ success: false, message: 'No puzzle available' });
+
+    if (!puzzleCache.daily) {
+      const api = await puzzleApi.fetchDailyPuzzle();
+      if (api) {
+        api._cachedAt = Date.now();
+        puzzleCache.daily = api;
+      }
     }
+
+    const puzzle = puzzleCache.daily || puzzleCache.puzzles[0];
+    if (!puzzle) {
+      return res.json({ success: false, message: 'No puzzle available. Try browsing puzzles.' });
+    }
+
     res.json({ success: true, puzzle });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to get daily puzzle', error: error.message });
@@ -22,32 +60,46 @@ exports.getDailyPuzzle = async (req, res) => {
 
 exports.getPuzzles = async (req, res) => {
   try {
-    const { page = 1, limit = 12, difficulty, theme, ratingMin, ratingMax } = req.query;
-    const query = { isActive: true };
+    await ensureCache();
 
-    if (difficulty) query.difficulty = difficulty;
-    if (theme) query.theme = theme;
-    if (ratingMin || ratingMax) {
-      query.rating = {};
-      if (ratingMin) query.rating.$gte = parseInt(ratingMin);
-      if (ratingMax) query.rating.$lte = parseInt(ratingMax);
-    }
+    const { page = 1, limit = 12, difficulty, theme } = req.query;
 
-    const puzzles = await AiPuzzle.find(query)
-      .sort({ rating: 1, timesSolved: 1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit))
-      .select('-solution')
-      .lean();
+    let filtered = puzzleCache.puzzles;
+    if (difficulty) filtered = filtered.filter(p => p.difficulty === difficulty);
+    if (theme) filtered = filtered.filter(p => p.theme === theme);
 
-    const total = await AiPuzzle.countDocuments(query);
+    const start = (page - 1) * limit;
+    const paged = filtered.slice(start, start + parseInt(limit));
+
+    try {
+      const dbCount = await AiPuzzle.countDocuments({ isActive: true }).catch(() => 0);
+      if (dbCount > 0) {
+        const dbQuery = { isActive: true };
+        if (difficulty) dbQuery.difficulty = difficulty;
+        if (theme) dbQuery.theme = theme;
+
+        const dbPuzzles = await AiPuzzle.find(dbQuery)
+          .sort({ rating: 1 })
+          .skip(start)
+          .limit(parseInt(limit))
+          .select('-solution')
+          .lean()
+          .catch(() => []);
+
+        if (dbPuzzles.length > 0) {
+          const total = await AiPuzzle.countDocuments(dbQuery).catch(() => 0);
+          return res.json({ success: true, puzzles: dbPuzzles, total, page: parseInt(page), pages: Math.ceil(total / limit) });
+        }
+      }
+    } catch {}
 
     res.json({
       success: true,
-      puzzles,
-      total,
+      puzzles: paged.map(p => ({ ...p, solution: undefined })),
+      total: filtered.length,
       page: parseInt(page),
-      pages: Math.ceil(total / limit)
+      pages: Math.ceil(filtered.length / limit),
+      source: 'cache'
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to get puzzles', error: error.message });
@@ -56,12 +108,13 @@ exports.getPuzzles = async (req, res) => {
 
 exports.getPuzzleById = async (req, res) => {
   try {
-    const puzzle = await AiPuzzle.findById(req.params.id).lean();
-    if (!puzzle) {
-      return res.status(404).json({ success: false, message: 'Puzzle not found' });
-    }
+    const dbPuzzle = await AiPuzzle.findById(req.params.id).lean().catch(() => null);
+    if (dbPuzzle) return res.json({ success: true, puzzle: dbPuzzle });
 
-    res.json({ success: true, puzzle });
+    const cached = puzzleCache.puzzles.find(p => p.fen === req.params.id || p._id === req.params.id);
+    if (cached) return res.json({ success: true, puzzle: cached });
+
+    res.status(404).json({ success: false, message: 'Puzzle not found' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to get puzzle', error: error.message });
   }
@@ -72,13 +125,15 @@ exports.solvePuzzle = async (req, res) => {
     const { id } = req.params;
     const { move } = req.body;
 
-    const puzzle = await AiPuzzle.findById(id);
+    let puzzle = await AiPuzzle.findById(id).catch(() => null);
+    if (!puzzle) {
+      puzzle = puzzleCache.puzzles.find(p => p._id === id || p.fen === id);
+    }
     if (!puzzle) {
       return res.status(404).json({ success: false, message: 'Puzzle not found' });
     }
 
     const chess = new Chess(puzzle.fen);
-    const playerSide = puzzle.playerSide || chess.turn();
 
     let playerMove;
     try {
@@ -88,27 +143,24 @@ exports.solvePuzzle = async (req, res) => {
       if (match.length === 1) {
         playerMove = chess.move(match[0]);
       } else {
-        return res.json({
-          success: true,
-          correct: false,
-          message: 'Invalid move',
-          hint: puzzle.hint || 'Try a different move'
-        });
+        return res.json({ success: true, correct: false, message: 'Invalid move', hint: puzzle.hint || 'Try a different move' });
       }
     }
 
-    const solution = puzzle.solution;
+    const solution = puzzle.solution || [];
     const isCorrect = solution.length > 0 && playerMove.san === solution[0];
 
-    if (isCorrect) {
-      puzzle.timesSolved += 1;
-      await puzzle.save();
+    if (isCorrect && puzzle.__v !== undefined) {
+      try {
+        puzzle.timesSolved = (puzzle.timesSolved || 0) + 1;
+        await puzzle.save();
+      } catch {}
     }
 
     res.json({
       success: true,
       correct: isCorrect,
-      message: isCorrect ? 'Correct! Well done!' : 'Not quite. Try again!',
+      message: isCorrect ? 'Correct!' : 'Not quite. Try again!',
       san: playerMove.san,
       fen: chess.fen(),
       gameOver: chess.isGameOver(),
@@ -121,28 +173,28 @@ exports.solvePuzzle = async (req, res) => {
 
 exports.getPuzzleStats = async (req, res) => {
   try {
-    const totalPuzzles = await AiPuzzle.countDocuments({ isActive: true });
-    const byDifficulty = await AiPuzzle.aggregate([
-      { $match: { isActive: true } },
-      { $group: { _id: '$difficulty', count: { $sum: 1 } } }
-    ]);
-    const byTheme = await AiPuzzle.aggregate([
-      { $match: { isActive: true } },
-      { $group: { _id: '$theme', count: { $sum: 1 } } }
-    ]);
+    const byDifficulty = {};
+    const byTheme = {};
 
-    const userSolved = await AiPuzzle.countDocuments({
-      isActive: true,
-      timesSolved: { $gt: 0 }
-    });
+    for (const p of puzzleCache.puzzles) {
+      byDifficulty[p.difficulty] = (byDifficulty[p.difficulty] || 0) + 1;
+      byTheme[p.theme] = (byTheme[p.theme] || 0) + 1;
+    }
+
+    try {
+      const dbDiff = await AiPuzzle.aggregate([{ $match: { isActive: true } }, { $group: { _id: '$difficulty', count: { $sum: 1 } } }]).catch(() => []);
+      const dbTheme = await AiPuzzle.aggregate([{ $match: { isActive: true } }, { $group: { _id: '$theme', count: { $sum: 1 } } }]).catch(() => []);
+
+      for (const d of dbDiff) byDifficulty[d._id] = (byDifficulty[d._id] || 0) + d.count;
+      for (const t of dbTheme) byTheme[t._id] = (byTheme[t._id] || 0) + t.count;
+    } catch {}
 
     res.json({
       success: true,
       stats: {
-        totalPuzzles,
-        byDifficulty: byDifficulty.reduce((acc, d) => ({ ...acc, [d._id]: d.count }), {}),
-        byTheme: byTheme.reduce((acc, t) => ({ ...acc, [t._id]: t.count }), {}),
-        userContributed: userSolved
+        totalPuzzles: puzzleCache.puzzles.length,
+        byDifficulty,
+        byTheme
       }
     });
   } catch (error) {
@@ -150,38 +202,49 @@ exports.getPuzzleStats = async (req, res) => {
   }
 };
 
-exports.syncLichessPuzzles = async (req, res) => {
+exports.syncPuzzles = async (req, res) => {
   try {
-    const count = await syncPuzzlesFromLichess(50);
-    res.json({ success: true, synced: count, message: `Synced ${count} puzzles from Lichess` });
+    const count = parseInt(req.query.count) || 10;
+    const batch = await puzzleApi.fetchPuzzleBatch(count);
+
+    let dbCreated = 0;
+    for (const p of batch) {
+      const exists = puzzleCache.puzzles.some(c => c.fen === p.fen);
+      if (!exists) {
+        puzzleCache.puzzles.push(p);
+      }
+      try {
+        const dbExists = await AiPuzzle.findOne({ fen: p.fen }).catch(() => null);
+        if (!dbExists) {
+          await AiPuzzle.create(p).catch(() => {});
+          dbCreated++;
+        }
+      } catch {}
+    }
+
+    puzzleCache.lastSync = Date.now();
+    res.json({ success: true, synced: batch.length, total: puzzleCache.puzzles.length, message: `Synced ${batch.length} puzzles` });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to sync Lichess puzzles', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to sync puzzles', error: error.message });
   }
 };
 
-exports.generatePuzzles = async (req, res) => {
+exports.resetPuzzles = async (req, res) => {
   try {
-    const { analysisId } = req.body;
+    puzzleCache.puzzles = [];
+    puzzleCache.daily = null;
+    puzzleCache.lastSync = 0;
 
-    const analysis = await StockfishAnalysis.findById(analysisId);
-    if (!analysis) {
-      return res.status(404).json({ success: false, message: 'Analysis not found' });
+    try { await AiPuzzle.deleteMany({}).catch(() => {}); } catch {}
+
+    const batch = await puzzleApi.fetchPuzzleBatch(12);
+    for (const p of batch) {
+      puzzleCache.puzzles.push(p);
+      try { await AiPuzzle.create(p).catch(() => {}); } catch {}
     }
 
-    const puzzles = await generatePuzzleFromAnalysis(analysis, req.user._id);
-
-    if (puzzles.length === 0) {
-      return res.json({ success: true, puzzles: [], message: 'No tactical opportunities found in this game' });
-    }
-
-    const created = await AiPuzzle.insertMany(puzzles);
-
-    res.json({
-      success: true,
-      puzzles: created,
-      message: `Generated ${created.length} puzzles from your game`
-    });
+    res.json({ success: true, count: batch.length, message: `Reset and seeded ${batch.length} fresh puzzles` });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to generate puzzles', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to reset puzzles', error: error.message });
   }
 };

@@ -24,8 +24,9 @@ const BrowseCoaches = () => {
   const fetchCoaches = useCallback(async () => {
     try {
       const { data } = await userAPI.getCoaches();
-      setCoaches(data.coaches);
-      setFilteredCoaches(data.coaches);
+      const coachesData = data?.coaches || [];
+      setCoaches(coachesData);
+      setFilteredCoaches(coachesData);
     } catch (error) {
       console.error("Error fetching coaches:", error);
     } finally {
@@ -57,7 +58,7 @@ const BrowseCoaches = () => {
     // Name Search
     if (filters.search) {
       filtered = filtered.filter((coach) =>
-        coach.name.toLowerCase().includes(filters.search.toLowerCase())
+        (coach.name || '').toLowerCase().includes(filters.search.toLowerCase())
       );
     }
 

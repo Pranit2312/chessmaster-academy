@@ -91,13 +91,13 @@ exports.getAnalysisById = asyncHandler(async (req, res) => {
  */
 exports.getAnalysisStatus = asyncHandler(async (req, res) => {
   const analysis = await StockfishAnalysis.findById(req.params.analysisId)
-    .select('status summary whitePlayer blackPlayer createdAt completedAt analysisTime');
+    .select('user status summary whitePlayer blackPlayer createdAt completedAt analysisTime');
 
   if (!analysis) {
     throw new NotFoundError('Analysis');
   }
 
-  if (analysis.user.toString() !== req.user._id.toString()) {
+  if (analysis.user && analysis.user.toString() !== req.user._id.toString()) {
     throw new AuthorizationError('Not authorized to view this analysis');
   }
 

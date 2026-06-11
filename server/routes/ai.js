@@ -63,8 +63,8 @@ router.post('/engine/test', protect, async (req, res) => {
 // ======================
 router.post('/bot/start', protect, aiBotController.startBotGame);
 router.post('/bot/:gameId/move', protect, aiBotController.makeMove);
-router.get('/bot/:gameId', protect, aiBotController.getGame);
 router.get('/bot/games', protect, aiBotController.getGames);
+router.get('/bot/:gameId', protect, aiBotController.getGame);
 router.put('/bot/:gameId/resign', protect, aiBotController.resignGame);
 router.post('/bot/:gameId/analyze', protect, aiBotController.analyzeBotGame);
 
@@ -76,8 +76,8 @@ router.get('/puzzles', protect, aiPuzzleController.getPuzzles);
 router.get('/puzzles/stats', protect, aiPuzzleController.getPuzzleStats);
 router.get('/puzzles/:id', protect, aiPuzzleController.getPuzzleById);
 router.post('/puzzles/:id/solve', protect, aiPuzzleController.solvePuzzle);
-router.post('/puzzles/generate', protect, aiPuzzleController.generatePuzzles);
-router.post('/puzzles/sync-lichess', protect, aiPuzzleController.syncLichessPuzzles);
+router.post('/puzzles/sync', protect, aiPuzzleController.syncPuzzles);
+router.post('/puzzles/reset', protect, aiPuzzleController.resetPuzzles);
 
 // ======================
 // AI OPENING EXPLORER

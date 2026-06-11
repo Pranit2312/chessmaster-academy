@@ -36,7 +36,7 @@ const AiCoachPage = () => {
     setError(null);
     try {
       const res = await aiAPI.sendChatMessage({ message, chatId });
-      setChatId(res.data.chat._id);
+      setChatId(res.data?.chat?._id || chatId);
       setMessages(prev => [
         ...prev,
         { role: 'user', content: message, timestamp: new Date() },
@@ -53,7 +53,7 @@ const AiCoachPage = () => {
     setLoading(true);
     try {
       const res = await aiAPI.getChatById(id);
-      setChatId(res.data.chat._id);
+      setChatId(res.data?.chat?._id || null);
       const history = res.data.chat.messages?.filter(m => m.role !== 'system') || [];
       setMessages(history);
       setShowHistory(false);

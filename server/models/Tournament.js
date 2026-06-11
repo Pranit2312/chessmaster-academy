@@ -1,244 +1,65 @@
 const mongoose = require('mongoose');
 
-// ============================================
-// TOURNAMENT SCHEMA
-// ============================================
 const tournamentSchema = new mongoose.Schema({
-  // Basic Information
-  name: {
-    type: String,
-    required: [true, 'Tournament name is required'],
-    trim: true,
-    maxlength: 150
-  },
-  
-  description: {
-    type: String,
-    maxlength: 2000
-  },
-  
-  // Organization
-  organizer: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  
-  // Tournament Details
+  name: { type: String, required: true, trim: true, maxlength: 150 },
+  description: { type: String, maxlength: 5000 },
+  banner: { type: String },
   tournamentType: {
     type: String,
-    enum: ['Round Robin', 'Swiss', 'Knockout', 'Ladder'],
+    enum: ['swiss', 'round_robin', 'knockout', 'double_elimination', 'arena'],
     required: true
   },
-  
   timeControl: {
-    type: String,
-    enum: ['Blitz', 'Rapid', 'Classical'],
-    required: true
+    initial: { type: Number, required: true },
+    increment: { type: Number, default: 0 }
   },
-  
-  maxParticipants: {
-    type: Number,
-    required: true,
-    min: 2,
-    max: 1000
-  },
-  
-  minRating: {
-    type: Number,
-    default: 0
-  },
-  
-  maxRating: {
-    type: Number,
-    default: 4000
-  },
-  
-  skillLevel: {
-    type: String,
-    enum: ['Beginner', 'Intermediate', 'Advanced', 'Expert', 'All'],
-    default: 'All'
-  },
-  
-  // Participants
-  participants: [
-    {
-      userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-      },
-      registeredAt: Date,
-      status: {
-        type: String,
-        enum: ['registered', 'withdrew', 'disqualified'],
-        default: 'registered'
-      },
-      seed: Number,
-      rating: Number
-    }
-  ],
-  
-  registeredCount: {
-    type: Number,
-    default: 0
-  },
-  
-  // Schedule
-  startDate: {
-    type: Date,
-    required: true
-  },
-  
-  endDate: {
-    type: Date,
-    required: true
-  },
-  
-  registrationDeadline: {
-    type: Date,
-    required: true
-  },
-  
-  roundDates: [
-    {
-      roundNumber: Number,
-      startDate: Date,
-      endDate: Date
-    }
-  ],
-  
-  // Matches
-  rounds: [
-    {
-      roundNumber: Number,
-      matches: [
-        {
-          matchId: String,
-          whitePlayer: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
-          },
-          blackPlayer: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
-          },
-          result: {
-            type: String,
-            enum: ['white_win', 'black_win', 'draw', 'pending'],
-            default: 'pending'
-          },
-          pgn: String,
-          scheduledAt: Date,
-          completedAt: Date
-        }
-      ]
-    }
-  ],
-  
-  // Standings
-  standings: [
-    {
-      position: Number,
-      userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-      },
-      wins: {
-        type: Number,
-        default: 0
-      },
-      losses: {
-        type: Number,
-        default: 0
-      },
-      draws: {
-        type: Number,
-        default: 0
-      },
-      score: {
-        type: Number,
-        default: 0
-      },
-      tiebreakScore: Number
-    }
-  ],
-  
-  // Prizes
-  prizes: {
-    totalPrizePool: {
-      type: Number,
-      default: 0
-    },
-    distribution: [
-      {
-        position: Number,
-        amount: Number,
-        description: String
-      }
-    ]
-  },
-  
-  // Status
+  timeControlLabel: { type: String },
+  entryFee: { type: Number, default: 0 },
+  prizePool: { type: Number, default: 0 },
+  maxPlayers: { type: Number, min: 2, max: 10000, default: 100 },
+  registeredPlayers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  registeredCount: { type: Number, default: 0 },
   status: {
     type: String,
-    enum: ['draft', 'registration_open', 'in_progress', 'completed', 'cancelled'],
+    enum: ['draft', 'registration_open', 'registration_closed', 'in_progress', 'completed', 'cancelled'],
     default: 'draft'
   },
-  
-  isPublished: {
-    type: Boolean,
-    default: false
-  },
-  
-  // Visibility
-  isPublic: {
-    type: Boolean,
-    default: true
-  },
-  
-  // Rules & Settings
-  rules: String,
-  
-  allowDrawOffers: {
-    type: Boolean,
-    default: true
-  },
-  
-  allowAdjournment: {
-    type: Boolean,
-    default: false
-  },
-  
-  // Analysis
-  statistics: {
-    totalMatches: {
-      type: Number,
-      default: 0
-    },
-    completedMatches: {
-      type: Number,
-      default: 0
-    },
-    averageRating: Number,
-    medianRating: Number
-  },
-  
-  // Timestamps
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
+  startDate: { type: Date, required: true },
+  endDate: { type: Date, required: true },
+  registrationDeadline: { type: Date, required: true },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  rules: { type: String, maxlength: 5000 },
+  isRated: { type: Boolean, default: true },
+  isPublic: { type: Boolean, default: true },
+  currentRound: { type: Number, default: 0 },
+  totalRounds: { type: Number },
+  pairings: [{
+    round: Number,
+    matches: [{
+      player1: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      player2: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      result: { type: String, enum: ['1-0', '0-1', '0.5-0.5', '*', null], default: null },
+      status: { type: String, enum: ['scheduled', 'in_progress', 'completed', 'bye'], default: 'scheduled' }
+    }]
+  }],
+  standings: [{
+    player: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    points: { type: Number, default: 0 },
+    wins: { type: Number, default: 0 },
+    draws: { type: Number, default: 0 },
+    losses: { type: Number, default: 0 },
+    tieBreak: { type: Number, default: 0 }
+  }],
+  prizes: [{
+    position: { type: Number },
+    amount: { type: Number },
+    winner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
+  }],
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
-// Indexes
-tournamentSchema.index({ organizer: 1 });
-tournamentSchema.index({ status: 1 });
-tournamentSchema.index({ startDate: 1 });
-tournamentSchema.index({ isPublished: 1 });
+tournamentSchema.index({ status: 1, startDate: -1 });
+tournamentSchema.index({ createdBy: 1, status: 1 });
 
 module.exports = mongoose.model('Tournament', tournamentSchema);
