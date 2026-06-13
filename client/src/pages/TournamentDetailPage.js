@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { tournamentAPI } from '../utils/api';
 import '../styles/TournamentsPage.css';
 
 export default function TournamentDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
+  const { on, off } = useSocket();
   const [tournament, setTournament] = useState(null);
   const [standings, setStandings] = useState([]);
   const [pairings, setPairings] = useState(null);
@@ -32,6 +35,18 @@ export default function TournamentDetailPage() {
   }, [id]);
 
   useEffect(() => { loadTournament(); }, [loadTournament]);
+
+  // Auto-navigate to game when a tournament match:found arrives
+  useEffect(() => {
+    if (!id) return;
+    const handler = (data) => {
+      if (data.tournament && String(data.tournament) === String(id)) {
+        navigate(`/play/${data.gameId}`, { state: { matchData: data } });
+      }
+    };
+    on('match:found', handler);
+    return () => off('match:found');
+  }, [id, on, off, navigate]);
 
   async function handleRegister() {
     if (!window.confirm('Confirm registration?')) return;
@@ -60,6 +75,17 @@ export default function TournamentDetailPage() {
     catch (e) { alert(e.response?.data?.message); }
   }
 
+  async function handleArenaPair() {
+    try {
+      const res = await tournamentAPI.arenaPair(id);
+      if (res.data?.game?._id) {
+        navigate(`/play/${res.data.game._id}`);
+      } else {
+        alert('No opponent available right now');
+      }
+    } catch (e) { alert(e.response?.data?.message || 'Arena pairing failed'); }
+  }
+
   async function handleEnd() {
     if (!window.confirm('End this tournament?')) return;
     try { await tournamentAPI.end(id); loadTournament(); }
@@ -69,7 +95,7 @@ export default function TournamentDetailPage() {
   if (loading) return <div className="tournament-detail"><p>Loading...</p></div>;
   if (!tournament) return <div className="tournament-detail"><p>Tournament not found</p></div>;
 
-  const isRegistered = tournament.registeredPlayers?.some(p => p._id === user?._id);
+  const isRegistered = tournament.registeredPlayers?.some(p => String(p._id) === String(user?._id));
   const isAdmin = user?.role === 'admin';
 
   return (
@@ -96,11 +122,14 @@ export default function TournamentDetailPage() {
           {isAdmin && tournament.status === 'registration_open' && (
             <button className="tp-btn tp-btn-primary" onClick={handleStart}>Start Tournament</button>
           )}
+          {isAdmin && tournament.status === 'in_progress' && tournament.tournamentType !== 'arena' && (
+            <button className="tp-btn tp-btn-primary" onClick={handleNextRound}>Next Round</button>
+          )}
+          {tournament.status === 'in_progress' && tournament.tournamentType === 'arena' && isRegistered && (
+            <button className="tp-btn tp-btn-primary" onClick={handleArenaPair}>Find Match</button>
+          )}
           {isAdmin && tournament.status === 'in_progress' && (
-            <>
-              <button className="tp-btn tp-btn-primary" onClick={handleNextRound}>Next Round</button>
-              <button className="tp-btn tp-btn-danger" onClick={handleEnd}>End Tournament</button>
-            </>
+            <button className="tp-btn tp-btn-danger" onClick={handleEnd}>End Tournament</button>
           )}
         </div>
       </div>

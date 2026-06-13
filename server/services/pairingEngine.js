@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const User = require('../models/User');
 
 // --- Swiss ---
 
@@ -265,14 +266,20 @@ async function createGamesForPairings(tournament, pairings, io) {
 
     // Notify players via sockets
     if (io) {
-      [match.player1, match.player2].forEach(uid => {
-        const opponentId = String(uid) === String(match.player1) ? match.player2 : match.player1;
+      const playerIds = [String(match.player1), String(match.player2)];
+      const userDocs = await User.find({ _id: { $in: playerIds } }).select('name chessRating').lean();
+      const userMap = {};
+      userDocs.forEach(u => { userMap[String(u._id)] = u; });
+
+      playerIds.forEach(uid => {
+        const opponentId = uid === String(match.player1) ? String(match.player2) : String(match.player1);
+        const opp = userMap[opponentId];
         io.to(`user:${uid}`).emit('match:found', {
           gameId: game._id.toString(),
-          opponent: { userId: opponentId },
+          opponent: { userId: opponentId, username: opp?.name || 'Opponent', rating: opp?.chessRating || 1200 },
           timeControl: tc,
           timeControlLabel: tournament.timeControlLabel || `${tc.initial}+${tc.increment}`,
-          color: String(uid) === String(match.player1) ? 'white' : 'black',
+          color: uid === String(match.player1) ? 'white' : 'black',
           tournament: tournament._id.toString(),
           tournamentName: tournament.name
         });
@@ -284,6 +291,52 @@ async function createGamesForPairings(tournament, pairings, io) {
 }
 
 exports.createGamesForPairings = createGamesForPairings;
+
+/**
+ * After a game ends, if it belongs to a tournament, update the tournament's
+ * pairings and standings automatically.
+ */
+exports.submitTournamentGameResult = async (game) => {
+  if (!game || !game.tournament) return;
+
+  const Tournament = require('../models/Tournament');
+  const tournament = await Tournament.findById(game.tournament);
+  if (!tournament || tournament.status !== 'in_progress') return;
+
+  // Find the match in tournament pairings by gameId
+  let found = false;
+  for (const round of tournament.pairings) {
+    for (const match of round.matches) {
+      if (match.gameId && String(match.gameId) === String(game._id)) {
+        if (match.status === 'completed') return; // already submitted
+        match.result = game.result || '*';
+        match.status = 'completed';
+
+        // Update standings
+        const p1Standing = tournament.standings.find(
+          s => s.player && String(s.player) === String(match.player1)
+        );
+        const p2Standing = tournament.standings.find(
+          s => s.player && String(s.player) === String(match.player2)
+        );
+
+        if (p1Standing && p2Standing) {
+          if (game.result === '1-0') { p1Standing.points += 1; p1Standing.wins += 1; p2Standing.losses += 1; }
+          else if (game.result === '0-1') { p2Standing.points += 1; p2Standing.wins += 1; p1Standing.losses += 1; }
+          else if (game.result === '0.5-0.5') { p1Standing.points += 0.5; p1Standing.draws += 1; p2Standing.points += 0.5; p2Standing.draws += 1; }
+        }
+        found = true;
+        break;
+      }
+    }
+    if (found) break;
+  }
+
+  if (found) {
+    await tournament.save();
+    logger.info(`Tournament result auto-submitted: game=${game._id}, result=${game.result}`);
+  }
+};
 
 function havePlayed(p1, p2, previousPairings) {
   if (!previousPairings || !previousPairings.length) return false;

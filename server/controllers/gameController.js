@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Game = require('../models/Game');
 const Rating = require('../models/Rating');
 const User = require('../models/User');
@@ -6,7 +7,16 @@ const { getCategory } = require('../services/ratingSystem');
 const { queueGameAnalysis } = require('../services/analysisQueueService');
 const { asyncHandler } = require('../utils/errors');
 
+function validateObjectId(id) {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    const err = new Error('Invalid ID format');
+    err.statusCode = 400;
+    throw err;
+  }
+}
+
 exports.getGame = async (req, res) => {
+  validateObjectId(req.params.id);
   const game = await Game.findById(req.params.id)
     .populate('players.user', 'name chessRating profileImage');
   if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
@@ -86,6 +96,7 @@ exports.getLeaderboard = async (req, res) => {
 };
 
 exports.getGameReplay = async (req, res) => {
+  validateObjectId(req.params.id);
   const game = await Game.findById(req.params.id)
     .populate('players.user', 'name chessRating profileImage');
   if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
@@ -93,6 +104,7 @@ exports.getGameReplay = async (req, res) => {
 };
 
 exports.analyzeGame = async (req, res) => {
+  validateObjectId(req.params.id);
   const game = await Game.findById(req.params.id);
   if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
 
@@ -114,6 +126,7 @@ exports.analyzeGame = async (req, res) => {
 };
 
 exports.analyzeGameStockfish = async (req, res) => {
+  validateObjectId(req.params.id);
   const game = await Game.findById(req.params.id);
   if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
 

@@ -89,6 +89,7 @@ exports.createDailySlots = async (coachId, date, selectedSlots = null, meetingLi
         price: fee !== null && fee !== '' ? Number(fee) : (coach.hourlyRate || 0),
         meetingLink,
         meetingPlatform,
+        capacity: slot.capacity || 1,
         status: 'available',
         isBooked: false
       });
@@ -174,11 +175,13 @@ exports.deleteDailySlots = async (coachId, date) => {
     const endOfDay = new Date(slotDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Find slots to delete
+    // Find slots to delete (only unbooked ones with no active bookings)
+    // NOTE: $ifNull handles old docs that predate the currentBookings field
     const slotsToDelete = await Slot.find({
       coach: coachId,
       startTime: { $gte: startOfDay, $lte: endOfDay },
-      isBooked: false
+      isBooked: false,
+      $expr: { $eq: [{ $ifNull: ['$currentBookings', 0] }, 0] }
     });
 
     const slotIds = slotsToDelete.map(s => s._id);

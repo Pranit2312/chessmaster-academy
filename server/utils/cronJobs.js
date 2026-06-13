@@ -3,6 +3,7 @@ const autoCompleteSessions = require('./autoCompleteSessions');
 const processAnalysisQueue = require('../jobs/processAnalysisQueue');
 const puzzleApi = require('../services/puzzleApiService');
 const AiPuzzle = require('../models/AiPuzzle');
+const logger = require('./logger');
 
 module.exports = () => {
   cron.schedule('*/1 * * * *', async () => {
@@ -21,7 +22,7 @@ module.exports = () => {
         const exists = await AiPuzzle.findOne({ fen: p.fen });
         if (!exists) { await AiPuzzle.create(p); created++; }
       }
-      console.log(`Cron synced ${created} puzzles`);
+      logger.info(`Cron synced ${created} puzzles`);
 
       const daily = await puzzleApi.fetchDailyPuzzle();
       if (daily) {
@@ -29,7 +30,7 @@ module.exports = () => {
         if (!exists) { await AiPuzzle.create(daily); created++; }
       }
     } catch (err) {
-      console.warn('Puzzle cron sync failed:', err.message);
+      logger.warn('Puzzle cron sync failed:', err.message);
     }
   });
 };

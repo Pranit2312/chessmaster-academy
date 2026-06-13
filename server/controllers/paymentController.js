@@ -36,18 +36,24 @@ exports.createOrder = async (req, res) => {
       return res.status(404).json({ message: 'Slot not found' });
     }
 
-    // Prevent duplicate bookings
+    // Prevent duplicate bookings (per user)
     const existingBooking = await Booking.findOne({
       slot: slotId,
+      student: req.user.id,
       paymentStatus: { $in: ['pending', 'completed'] }
     });
 
     if (existingBooking) {
-      return res.status(400).json({ message: 'Slot already booked' });
+      return res.status(400).json({ message: 'You have already booked this slot' });
     }
 
+    // Check availability (group-aware)
     if (slot.isBooked || slot.status !== 'available') {
       return res.status(400).json({ message: 'Slot not available' });
+    }
+    const effectiveCapacity = slot.capacity || 1;
+    if (effectiveCapacity > 1 && (slot.currentBookings || 0) >= effectiveCapacity) {
+      return res.status(400).json({ message: 'Slot is fully booked' });
     }
 
     // 🟢 Commission Logic (10%)
@@ -133,11 +139,18 @@ exports.verifyPayment = async (req, res) => {
 
     await booking.save();
 
-    // Mark slot booked
+    // Mark slot booked (group-aware)
     const slot = await Slot.findById(booking.slot._id);
-    slot.isBooked = true;
-    slot.status = 'booked';
-    slot.bookingId = booking._id;
+    slot.currentBookings = (slot.currentBookings || 0) + 1;
+    const effectiveCapacity = slot.capacity || 1;
+    if (effectiveCapacity === 1) {
+      slot.isBooked = true;
+      slot.status = 'booked';
+      slot.bookingId = booking._id;
+    } else if (slot.currentBookings >= effectiveCapacity) {
+      slot.isBooked = true;
+      slot.status = 'booked';
+    }
     await slot.save();
 
     // Update stats

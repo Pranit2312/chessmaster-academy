@@ -6,8 +6,10 @@ const {
   Chess
 } = require('./pgnParserService');
 const { analyzeFen } = require('./stockfishEngine');
+const logger = require('../utils/logger');
 
 const DEFAULT_DEPTH = parseInt(process.env.ANALYSIS_MAX_DEPTH, 10) || 10;
+const MAX_ANALYSIS_TIME = parseInt(process.env.MAX_ANALYSIS_TIME || '180000', 10);
 
 /**
  * Analyze a full game with Stockfish WASM engine.
@@ -38,6 +40,10 @@ async function analyzeGame(pgn, options = {}) {
   let blunders = 0;
 
   for (let i = 0; i < verboseMoves.length; i++) {
+    if (Date.now() - startTime > MAX_ANALYSIS_TIME) {
+      logger.warn(`Analysis timed out after ${MAX_ANALYSIS_TIME}ms at move ${i}/${verboseMoves.length}`);
+      break;
+    }
     const move = verboseMoves[i];
     const fenBefore = chess.fen();
     const isWhiteMove = move.color === 'w';

@@ -23,6 +23,10 @@ exports.createSession = async (studentId, slotId, sessionData) => {
     if (slot.isBooked || slot.status !== 'available') {
       throw new Error('Slot is not available');
     }
+    const effectiveCapacity = slot.capacity || 1;
+    if (effectiveCapacity > 1 && (slot.currentBookings || 0) >= effectiveCapacity) {
+      throw new Error('Slot is fully booked');
+    }
 
     // Get student details
     const student = await User.findById(studentId);
@@ -55,12 +59,17 @@ exports.createSession = async (studentId, slotId, sessionData) => {
       skillLevel: sessionData?.skillLevel || 'intermediate'
     });
 
-    // Update slot to mark as booked
-    await Slot.findByIdAndUpdate(slotId, {
-      isBooked: true,
-      bookedBy: studentId,
-      status: 'booked'
-    });
+    // Update slot to mark as booked (group-aware)
+    const slotDoc = await Slot.findById(slotId);
+    if (slotDoc) {
+      slotDoc.currentBookings = (slotDoc.currentBookings || 0) + 1;
+      const slotCapacity = slotDoc.capacity || 1;
+      if (slotCapacity === 1 || slotDoc.currentBookings >= slotCapacity) {
+        slotDoc.isBooked = true;
+        slotDoc.status = 'booked';
+      }
+      await slotDoc.save();
+    }
 
     // Deduct from student wallet
     await Wallet.findByIdAndUpdate(studentId, {

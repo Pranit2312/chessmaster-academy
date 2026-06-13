@@ -1,6 +1,7 @@
 /**
  * Global error handling utilities
  */
+const logger = require('./logger');
 
 class AppError extends Error {
   constructor(message, statusCode) {
@@ -68,7 +69,7 @@ const sendErrorResponse = (error, req, res) => {
   const status = error.statusCode || 500;
   const message = error.message || 'Internal Server Error';
 
-  console.error(`[${new Date().toISOString()}] ${status} - ${message}`, error);
+  logger.error(`${status} - ${message}`, { path: req.path, stack: process.env.NODE_ENV === 'production' ? undefined : error.stack });
 
   res.status(status).json({
     success: false,

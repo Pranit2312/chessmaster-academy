@@ -43,6 +43,7 @@ class MatchmakingService {
 
   start() {
     this.checkInterval = setInterval(() => this.processQueues(), 2000);
+    this.checkInterval.unref();
     logger.info('Matchmaking service started');
   }
 

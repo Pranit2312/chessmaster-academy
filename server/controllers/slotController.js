@@ -8,7 +8,7 @@ const { getCache, setCache, clearCache } = require('../utils/cache');
 // @access  Private (Coach)
 exports.createSlot = async (req, res) => {
   try {
-    const { startTime, endTime, duration, price, meetingLink, meetingPlatform, notes } = req.body;
+    const { startTime, endTime, duration, price, meetingLink, meetingPlatform, notes, capacity } = req.body;
 
     // 🔍 LOG incoming data for debugging
     console.log("Incoming slot create request:", {
@@ -64,6 +64,7 @@ exports.createSlot = async (req, res) => {
       meetingLink,
       meetingPlatform: meetingPlatform || 'Zoom',
       notes,
+      capacity: capacity || 1,
       status: 'available',
       isBooked: false
     });
@@ -110,11 +111,17 @@ exports.getSlots = async (req, res) => {
     const slots = await Slot.find(query)
       .populate('coach', 'name email chessRating title hourlyRate');
 
+    // Add remaining spots info to each slot
+    const enrichedSlots = slots.map(s => ({
+      ...s.toObject(),
+      remainingSpots: Math.max(0, (s.capacity || 1) - (s.currentBookings || 0))
+    }));
+
     if (!coachId && status === 'available') {
-      setCache('available_slots', { success: true, slots });
+      setCache('available_slots', { success: true, slots: enrichedSlots });
     }
 
-    res.json({ success: true, slots });
+    res.json({ success: true, slots: enrichedSlots });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -140,12 +147,17 @@ exports.getMySlots = async (req, res) => {
 
     const total = await Slot.countDocuments(query);
 
+    const enrichedSlots = slots.map(s => ({
+      ...s.toObject(),
+      remainingSpots: Math.max(0, (s.capacity || 1) - (s.currentBookings || 0))
+    }));
+
     res.status(200).json({
       success: true,
       page: Number(page),
       pages: Math.ceil(total / limit),
       total,
-      slots
+      slots: enrichedSlots
     });
 
   } catch (error) {
@@ -168,8 +180,8 @@ exports.updateSlot = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this slot' });
     }
 
-    if (slot.isBooked) {
-      return res.status(400).json({ message: 'Cannot update booked slot' });
+    if (slot.isBooked || slot.currentBookings > 0) {
+      return res.status(400).json({ message: 'Cannot update a slot with active bookings' });
     }
 
     const allowedUpdates = [
@@ -179,7 +191,8 @@ exports.updateSlot = async (req, res) => {
       'price',
       'meetingLink',
       'meetingPlatform',
-      'notes'
+      'notes',
+      'capacity'
     ];
 
     allowedUpdates.forEach(field => {
@@ -212,8 +225,8 @@ exports.deleteSlot = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to delete this slot' });
     }
 
-    if (slot.isBooked) {
-      return res.status(400).json({ message: 'Cannot delete booked slot' });
+    if (slot.isBooked || slot.currentBookings > 0) {
+      return res.status(400).json({ message: 'Cannot delete a slot with active bookings' });
     }
 
     await slot.deleteOne();

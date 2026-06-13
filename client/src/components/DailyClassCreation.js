@@ -19,6 +19,7 @@ const DailyClassCreation = ({ coachId }) => {
   const [meetingLink, setMeetingLink] = useState('');
   const [meetingPlatform, setMeetingPlatform] = useState('Zoom');
   const [fee, setFee] = useState('');
+  const [capacity, setCapacity] = useState(1);
 
   // Fetch predefined slots template on mount
   useEffect(() => {
@@ -93,7 +94,10 @@ const DailyClassCreation = ({ coachId }) => {
         return;
       }
 
-      const slotsToCreate = selectedSlots.map(index => predefinedSlots[index]);
+      const slotsToCreate = selectedSlots.map(index => ({
+        ...predefinedSlots[index],
+        capacity: Number(capacity) || 1
+      }));
 
       const payload = bulkMode
         ? {
@@ -102,14 +106,16 @@ const DailyClassCreation = ({ coachId }) => {
             selectedSlots: slotsToCreate,
             meetingLink,
             meetingPlatform,
-            fee
+            fee,
+            capacity: Number(capacity) || 1
           }
         : {
             date: selectedDate,
             selectedSlots: slotsToCreate,
             meetingLink,
             meetingPlatform,
-            fee
+            fee,
+            capacity: Number(capacity) || 1
           };
 
       const response = bulkMode 
@@ -211,6 +217,19 @@ const DailyClassCreation = ({ coachId }) => {
               onChange={(e) => setFee(e.target.value)}
               className="dcc-input"
               required
+            />
+          </div>
+          <div className="dcc-form-group">
+            <label htmlFor="capacity">Capacity (number of students)</label>
+            <input
+              id="capacity"
+              type="number"
+              min="1"
+              max="100"
+              placeholder="e.g., 1 for 1:1, 10 for group"
+              value={capacity}
+              onChange={(e) => setCapacity(e.target.value)}
+              className="dcc-input"
             />
           </div>
           <div className="dcc-form-group">
@@ -326,6 +345,11 @@ const DailyClassCreation = ({ coachId }) => {
                     })}
                   </span>
                   <span className="dcc-slot-duration">{slot.duration} min</span>
+                  <span className="dcc-slot-capacity">
+                    {slot.capacity > 1
+                      ? `${slot.currentBookings || 0}/${slot.capacity}`
+                      : '1:1'}
+                  </span>
                   <span
                     className={`dcc-slot-status dcc-status-${slot.status}`}
                   >

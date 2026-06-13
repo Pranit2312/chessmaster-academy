@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { aiAPI } from '../utils/api';
 import PuzzleBoard from '../components/PuzzleBoard';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -6,6 +6,14 @@ import '../styles/AiPages.css';
 
 const PUZZLE_THEMES = ['all', 'fork', 'pin', 'skewer', 'checkmate', 'sacrifice', 'discovered_attack', 'tactic'];
 const DIFFICULTIES = ['all', 'beginner', 'easy', 'medium', 'hard', 'expert'];
+
+const SOURCE_LABELS = {
+  lichess: 'Lichess', lichess_daily: 'Lichess', chesscom: 'Chess.com',
+  manual: 'Fallback', database: 'Database', api_cache: 'Platform',
+  stockfish: 'Stockfish'
+};
+
+const sourceLabel = (s) => SOURCE_LABELS[s] || s || 'Unknown';
 
 const AiPuzzlesPage = () => {
   const [view, setView] = useState('browse');
@@ -18,6 +26,8 @@ const AiPuzzlesPage = () => {
   const [difficulty, setDifficulty] = useState('all');
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
+  const [puzzleKey, setPuzzleKey] = useState(0);
+  const solvingRef = useRef(false);
 
   const loadPuzzles = useCallback(async () => {
     setLoading(true);
@@ -64,18 +74,25 @@ const AiPuzzlesPage = () => {
     setView('solve');
     setSolved(false);
     setResult(null);
+    setPuzzleKey(k => k + 1);
   }, []);
 
   const handleSolve = useCallback(async (move) => {
-    if (!currentPuzzle || solved) return;
+    if (!currentPuzzle?._id || solved) return;
+    if (solvingRef.current) return;
+    solvingRef.current = true;
     try {
       const res = await aiAPI.solvePuzzle(currentPuzzle._id, { move });
       setResult(res.data);
       if (res.data.correct) {
         setSolved(true);
+      } else {
+        setPuzzleKey(k => k + 1);
       }
     } catch (err) {
       setError('Failed to check solution');
+    } finally {
+      solvingRef.current = false;
     }
   }, [currentPuzzle, solved]);
 
@@ -85,11 +102,11 @@ const AiPuzzlesPage = () => {
       setCurrentPuzzle(puzzles[idx + 1]);
       setSolved(false);
       setResult(null);
+      setPuzzleKey(k => k + 1);
     } else {
-      loadPuzzles();
       setView('browse');
     }
-  }, [puzzles, currentPuzzle, loadPuzzles]);
+  }, [puzzles, currentPuzzle]);
 
   return (
     <div className="ai-page">
@@ -147,7 +164,7 @@ const AiPuzzlesPage = () => {
                   <div key={p._id} className="puzzle-card" onClick={() => openPuzzle(p)}>
                     <div className="puzzle-card-header">
                       <span className={`puzzle-difficulty difficulty-${p.difficulty}`}>{p.difficulty}</span>
-                      <span className={`puzzle-source source-${p.source}`}>{p.source === 'lichess' || p.source === 'lichess_daily' ? 'Lichess' : p.source}</span>
+                      <span className={`puzzle-source source-${p.source}`}>{sourceLabel(p.source)}</span>
                     </div>
                     <div className="puzzle-card-body">
                       <span className="puzzle-theme">{p.theme?.replace(/_/g, ' ')}</span>
@@ -170,6 +187,7 @@ const AiPuzzlesPage = () => {
           <div className="puzzle-solve-layout">
             <div className="puzzle-board-wrapper">
               <PuzzleBoard
+                key={puzzleKey}
                 fen={currentPuzzle.fen}
                 playerSide={currentPuzzle.playerSide}
                 onSolve={handleSolve}
@@ -183,7 +201,7 @@ const AiPuzzlesPage = () => {
                   <span className={`badge badge-${currentPuzzle.difficulty}`}>{currentPuzzle.difficulty}</span>
                   <span className="badge badge-info">&#9733; {currentPuzzle.rating}</span>
                   <span className="badge badge-info">{currentPuzzle.playerSide === 'w' ? 'White' : 'Black'} to move</span>
-                  <span className={`badge puzzle-source source-${currentPuzzle.source}`}>{currentPuzzle.source === 'lichess' || currentPuzzle.source === 'lichess_daily' ? 'Lichess' : currentPuzzle.source}</span>
+                  <span className={`badge puzzle-source source-${currentPuzzle.source}`}>{sourceLabel(currentPuzzle.source)}</span>
                 </div>
                 <p className="puzzle-desc">{currentPuzzle.description || 'Find the best move in this position.'}</p>
                 {currentPuzzle.hint && !solved && (

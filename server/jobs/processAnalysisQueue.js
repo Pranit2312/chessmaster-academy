@@ -1,4 +1,5 @@
 const { processQueueBatch } = require('../services/analysisQueueService');
+const logger = require('../utils/logger');
 
 module.exports = async function processAnalysisQueue() {
   if (process.env.ENABLE_ANALYSIS_CRON === 'false') {
@@ -9,9 +10,9 @@ module.exports = async function processAnalysisQueue() {
     const results = await processQueueBatch();
     const processed = results.filter((r) => r.processed).length;
     if (processed > 0) {
-      console.log(`♟️  Processed ${processed} analysis job(s)`);
+      logger.info(`Processed ${processed} analysis job(s)`);
     }
   } catch (error) {
-    console.error('Analysis cron error:', error.message);
+    logger.error('Analysis cron error:', error.message);
   }
 };

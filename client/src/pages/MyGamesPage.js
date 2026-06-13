@@ -37,7 +37,7 @@ export default function MyGamesPage() {
                   <td>{g.timeControlLabel}</td>
                   <td>{new Date(g.createdAt).toLocaleDateString()}</td>
                   <td>
-                    <Link to={`/play/${g._id}/replay`} className="play-watch-btn">Review</Link>
+                    {g._id ? <Link to={`/play/${g._id}/replay`} className="play-watch-btn">Review</Link> : <span className="text-muted">N/A</span>}
                     <span className={`rating-change ${myRatingChange >= 0 ? 'rating-up' : 'rating-down'}`}>
                       {myRatingChange >= 0 ? '+' : ''}{myRatingChange}
                     </span>

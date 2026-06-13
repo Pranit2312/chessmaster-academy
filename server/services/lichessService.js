@@ -1,35 +1,100 @@
 const axios = require('axios');
+const https = require('https');
+const { Chess } = require('chess.js');
 const AiPuzzle = require('../models/AiPuzzle');
+const logger = require('../utils/logger');
 
 const LICHESS_API = 'https://lichess.org/api';
 const REQUEST_TIMEOUT = 8000;
+const MAX_RETRIES = 2;
+const BASE_RETRY_DELAY = 1000;
+const CACHE_TTL = 300000;
+
+const DEFAULT_HEADERS = {
+  'User-Agent': 'ChessMasterAcademy/1.0',
+  'Accept': 'application/json',
+  'Accept-Language': 'en-US',
+  'Connection': 'keep-alive'
+};
+
+const lichessAgent = new https.Agent({
+  rejectUnauthorized: process.env.NODE_ENV !== 'development',
+  keepAlive: true,
+  timeout: REQUEST_TIMEOUT
+});
+
+const responseCache = new Map();
+
+function getCached(key) {
+  const entry = responseCache.get(key);
+  if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data;
+  responseCache.delete(key);
+  return null;
+}
+
+function setCached(key, data) {
+  responseCache.set(key, { data, ts: Date.now() });
+}
+
+function isRetryable(err) {
+  if (err.response) {
+    const status = err.response.status;
+    if (status === 403 || status === 404) return false;
+    if (status >= 400 && status < 500) return false;
+  }
+  return true;
+}
+
+async function withRetry(fn, options = {}) {
+  const retries = options.retries ?? MAX_RETRIES;
+  const baseDelay = options.baseDelay ?? BASE_RETRY_DELAY;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i === retries || !isRetryable(err)) throw err;
+      const delay = Math.min(baseDelay * Math.pow(2, i), 5000);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
 
 async function fetchDailyPuzzle() {
+  const url = `${LICHESS_API}/puzzle/daily`;
+  const cached = getCached(url);
+  if (cached) return cached;
   try {
-    const { data } = await axios.get(`${LICHESS_API}/puzzle/daily`, {
+    const { data } = await withRetry(() => axios.get(url, {
       timeout: REQUEST_TIMEOUT,
-      headers: { 'Accept': 'application/json' }
-    });
-
+      httpsAgent: lichessAgent,
+      headers: DEFAULT_HEADERS
+    }));
     if (!data || !data.puzzle) return null;
-    return transformLichessPuzzle(data);
+    const result = transformLichessPuzzle(data);
+    if (result) setCached(url, result);
+    return result;
   } catch (err) {
-    console.warn('Lichess daily puzzle fetch failed:', err.message);
+    logger.warn('Lichess daily puzzle fetch failed:', err.message);
     return null;
   }
 }
 
 async function fetchRandomPuzzle() {
+  const url = `${LICHESS_API}/puzzle/next`;
+  const cached = getCached(url);
+  if (cached) return cached;
   try {
-    const { data } = await axios.get(`${LICHESS_API}/puzzle/next`, {
+    const { data } = await withRetry(() => axios.get(url, {
       timeout: REQUEST_TIMEOUT,
-      headers: { 'Accept': 'application/json' }
-    });
-
+      httpsAgent: lichessAgent,
+      headers: DEFAULT_HEADERS
+    }));
     if (!data || !data.puzzle) return null;
-    return transformLichessPuzzle(data);
+    const result = transformLichessPuzzle(data);
+    if (result) setCached(url, result);
+    return result;
   } catch (err) {
-    console.warn('Lichess random puzzle fetch failed:', err.message);
+    logger.warn('Lichess random puzzle fetch failed:', err.message);
     return null;
   }
 }
@@ -37,47 +102,40 @@ async function fetchRandomPuzzle() {
 async function fetchPuzzleBatch(count = 10) {
   const puzzles = [];
   const seen = new Set();
-
-  for (let i = 0; i < count * 3; i++) {
+  const maxAttempts = Math.min(count * 2, 10);
+  for (let i = 0; i < maxAttempts; i++) {
+    if (puzzles.length >= count) break;
     try {
       const puzzle = await fetchRandomPuzzle();
       const key = puzzle ? puzzle.fen + '|' + (puzzle.solution || []).join(',') : '';
       if (puzzle && !seen.has(key)) {
         seen.add(key);
         puzzles.push(puzzle);
-        if (puzzles.length >= count) break;
       }
     } catch {
-      continue;
+      break;
     }
   }
-
   return puzzles;
 }
 
 function transformLichessPuzzle(lichessData) {
   const puzzle = lichessData.puzzle;
   const game = lichessData.game;
-
   const fen = puzzle.fen;
   const solution = puzzle.solution || [];
   const initialPly = puzzle.initialPly || 0;
-
   const themes = (puzzle.themes || '').split(' ').filter(Boolean);
   const mappedThemes = [...new Set(themes.map(t => mapLichessTheme(t)).filter(Boolean))];
   const primaryTheme = mappedThemes[0] || 'tactic';
-
   const rating = puzzle.rating || 1500;
   const difficulty = ratingToDifficulty(rating);
   const playerSide = initialPly % 2 === 0 ? 'w' : 'b';
-
   const description = game
     ? `${game.players?.white?.name || '?'} vs ${game.players?.black?.name || '?'} — ${game.perf || 'Standard'}`
     : 'Lichess tactical puzzle';
-
   const tags = [...mappedThemes, 'lichess', difficulty, rating <= 1200 ? 'beginner' : rating <= 1600 ? 'intermediate' : 'advanced'];
-
-  return {
+  return validatePuzzle({
     fen,
     solution,
     theme: primaryTheme,
@@ -90,7 +148,27 @@ function transformLichessPuzzle(lichessData) {
     tags: [...new Set(tags)],
     popularity: puzzle.plays || 0,
     timesSolved: 0
-  };
+  });
+}
+
+function validatePuzzle(puzzle) {
+  if (!puzzle || !puzzle.fen || !puzzle.solution || puzzle.solution.length === 0) return null;
+  try {
+    const chess = new Chess(puzzle.fen);
+    const turn = chess.turn();
+    if (puzzle.playerSide && puzzle.playerSide !== turn) return null;
+    const firstMove = puzzle.solution[0];
+    try {
+      chess.move(firstMove, { sloppy: true });
+    } catch {
+      const match = chess.moves().filter(m => m.toLowerCase().startsWith(firstMove.toLowerCase()));
+      if (match.length !== 1) return null;
+      puzzle.solution[0] = match[0];
+    }
+    return puzzle;
+  } catch {
+    return null;
+  }
 }
 
 function mapLichessTheme(theme) {
@@ -132,7 +210,6 @@ const FALLBACK_PUZZLES = [
 
 async function syncPuzzlesFromLichess(count = 50) {
   let created = 0;
-
   const batch = await fetchPuzzleBatch(count);
   if (batch.length > 0) {
     for (const puzzle of batch) {
@@ -146,9 +223,8 @@ async function syncPuzzlesFromLichess(count = 50) {
         created++;
       }
     }
-    console.log(`Synced ${created} new puzzles from Lichess`);
+    logger.info(`Synced ${created} new puzzles from Lichess`);
   }
-
   for (const fallback of FALLBACK_PUZZLES) {
     const exists = await AiPuzzle.findOne({ fen: fallback.fen });
     if (!exists) {
@@ -156,7 +232,6 @@ async function syncPuzzlesFromLichess(count = 50) {
       created++;
     }
   }
-
   return created;
 }
 
@@ -165,21 +240,17 @@ async function getDailyPuzzleFromLichess() {
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
-
   let puzzle = await AiPuzzle.findOne({
     source: { $in: ['lichess_daily', 'daily'] },
     createdAt: { $gte: today, $lt: tomorrow }
   });
-
   if (puzzle) return puzzle;
-
   const lichessDaily = await fetchDailyPuzzle();
   if (lichessDaily) {
     lichessDaily.source = 'lichess_daily';
     puzzle = await AiPuzzle.create(lichessDaily);
     return puzzle;
   }
-
   puzzle = await AiPuzzle.findOne({ isActive: true })
     .sort({ timesSolved: 1, createdAt: -1 });
   return puzzle || null;

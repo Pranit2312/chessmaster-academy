@@ -191,6 +191,14 @@ exports.startTournament = async (req, res) => {
       status: m.player2 ? 'scheduled' : 'bye'
     }))
   }];
+
+  // Apply bye results to standings immediately
+  for (const m of tournament.pairings[0].matches) {
+    if (m.status === 'bye') {
+      const s = tournament.standings.find(st => st.player && String(st.player) === String(m.player1));
+      if (s) { s.points += 1; s.wins += 1; }
+    }
+  }
   await tournament.save();
 
   // Auto-create Game documents for the first round
@@ -260,20 +268,25 @@ exports.nextRound = async (req, res) => {
   }
 
   tournament.currentRound = nextRoundNum;
-  tournament.pairings.push({
-    round: nextRoundNum,
-    matches: nextPairings.map(m => ({
-      player1: m.player1,
-      player2: m.player2,
-      result: m.player2 ? null : '1-0',
-      status: m.player2 ? 'scheduled' : 'bye'
-    }))
-  });
+  const newMatches = nextPairings.map(m => ({
+    player1: m.player1,
+    player2: m.player2,
+    result: m.player2 ? null : '1-0',
+    status: m.player2 ? 'scheduled' : 'bye'
+  }));
+  tournament.pairings.push({ round: nextRoundNum, matches: newMatches });
+
+  // Apply bye results to standings immediately
+  for (const m of newMatches) {
+    if (m.status === 'bye') {
+      const s = tournament.standings.find(st => st.player && String(st.player) === String(m.player1));
+      if (s) { s.points += 1; s.wins += 1; }
+    }
+  }
   await tournament.save();
 
   // Auto-create Game documents for the new round
-  const roundData = tournament.pairings[tournament.pairings.length - 1];
-  const activeMatches = roundData.matches.filter(m => m.status === 'scheduled' && m.player2);
+  const activeMatches = newMatches.filter(m => m.status === 'scheduled' && m.player2);
   await pairingEngine.createGamesForPairings(tournament, activeMatches, _io);
   await tournament.save();
 

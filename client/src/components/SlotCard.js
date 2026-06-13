@@ -18,6 +18,11 @@ const SlotCard = ({ slot, isCoach, onEdit, onDelete, onBook }) => {
     });
   };
 
+  const capacity = slot.capacity || 1;
+  const bookedCount = slot.currentBookings || 0;
+  const remainingSpots = slot.remainingSpots ?? Math.max(0, capacity - bookedCount);
+  const isFull = remainingSpots <= 0;
+
   return (
     <div className="slot-card">
       <div className="slot-header">
@@ -29,16 +34,22 @@ const SlotCard = ({ slot, isCoach, onEdit, onDelete, onBook }) => {
         {formatTime(slot.startTime)} — {formatTime(slot.endTime)}
       </p>
 
-      <p className="slot-label">📅 {slot.duration} minutes</p>
-      <p className="slot-label">📹 {slot.meetingPlatform}</p>
+      <p className="slot-label">{slot.duration} minutes</p>
+      <p className="slot-label">{slot.meetingPlatform}</p>
 
-      <p className={`slot-status ${slot.status}`}>
-        {slot.status}
-      </p>
+      {capacity > 1 ? (
+        <p className={`slot-spots ${remainingSpots > 0 ? 'spots-available' : 'spots-full'}`}>
+          {remainingSpots > 0 ? `${remainingSpots} / ${capacity} spots left` : 'Fully booked'}
+        </p>
+      ) : (
+        <p className={`slot-status ${slot.status}`}>
+          {slot.status}
+        </p>
+      )}
 
-      {!isCoach && slot.status === "available" && (
+      {!isCoach && slot.status === "available" && !isFull && (
         <button className="btn btn-primary" onClick={() => onBook(slot)}>
-          Book Now
+          {capacity > 1 ? `Join (${remainingSpots} left)` : 'Book Now'}
         </button>
       )}
 
@@ -47,12 +58,12 @@ const SlotCard = ({ slot, isCoach, onEdit, onDelete, onBook }) => {
           <button
             className="btn btn-secondary"
             onClick={() => onEdit(slot)}
-            disabled={slot.isBooked}
+            disabled={slot.isBooked || slot.currentBookings > 0}
           >
             Edit
           </button>
 
-          {!slot.isBooked && (
+          {!slot.isBooked && slot.currentBookings === 0 && (
             <button
               className="btn btn-danger"
               onClick={() => onDelete(slot._id)}

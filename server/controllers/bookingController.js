@@ -21,6 +21,12 @@ exports.createBooking = async (req, res) => {
       return res.status(400).json({ message: "Slot not available" });
     }
 
+    // Check if group slot still has capacity
+    const effectiveCapacity = slot.capacity || 1;
+    if (effectiveCapacity > 1 && (slot.currentBookings || 0) >= effectiveCapacity) {
+      return res.status(400).json({ message: "Slot is fully booked" });
+    }
+
     // 1️⃣ Get student wallet
     const studentWallet = await Wallet.findOne({
       user: req.user.id,
@@ -53,10 +59,19 @@ exports.createBooking = async (req, res) => {
       meetingLink: slot.meetingLink
     });
 
-    // 5️⃣ Mark slot booked
-    slot.isBooked = true;
-    slot.status = "booked";
-    slot.bookingId = booking._id;
+    // 5️⃣ Mark slot booked (group-aware)
+    slot.currentBookings = (slot.currentBookings || 0) + 1;
+    if (effectiveCapacity === 1) {
+      // Legacy 1:1 behavior - fully lock the slot
+      slot.isBooked = true;
+      slot.status = "booked";
+      slot.bookingId = booking._id;
+    } else if (slot.currentBookings >= effectiveCapacity) {
+      // Group session is now fully booked
+      slot.isBooked = true;
+      slot.status = "booked";
+    }
+    // Partially booked group slots remain 'available' so others can still join
     await slot.save();
 
     // 6️⃣ Transaction log
@@ -223,11 +238,22 @@ exports.cancelBooking = async (req, res) => {
 
     await booking.save();
 
-    // ✅ Free the slot
+    // ✅ Free the slot (group-aware)
     if (booking.slot) {
-      booking.slot.isBooked = false;
-      booking.slot.status = 'available';
-      booking.slot.bookingId = null;
+      booking.slot.currentBookings = Math.max(0, (booking.slot.currentBookings || 0) - 1);
+      const slotCapacity = booking.slot.capacity || 1;
+      if (slotCapacity === 1) {
+        // Legacy 1:1 - fully free the slot
+        booking.slot.isBooked = false;
+        booking.slot.status = 'available';
+        booking.slot.bookingId = null;
+      } else {
+        // Group session - decrement and make available if was full
+        if (booking.slot.currentBookings < slotCapacity) {
+          booking.slot.isBooked = false;
+          booking.slot.status = 'available';
+        }
+      }
       await booking.slot.save();
     }
 

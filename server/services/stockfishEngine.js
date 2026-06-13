@@ -2,6 +2,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const { Chess } = require('chess.js');
+const logger = require('../utils/logger');
 
 const ENGINE_PATH = path.join(__dirname, '..', 'engines', 'stockfish.exe');
 const ENGINE_THREADS = parseInt(process.env.STOCKFISH_THREADS || '2', 10);
@@ -30,10 +31,10 @@ async function getEngine() {
     try {
       nativeEngine = await initNativeEngine();
       usingNative = true;
-      console.log(`✅ Stockfish 16 native engine loaded (${ENGINE_THREADS} threads, ${ENGINE_HASH}MB hash)`);
+      logger.info(`Stockfish 16 native engine loaded (${ENGINE_THREADS} threads, ${ENGINE_HASH}MB hash)`);
       return nativeEngine;
     } catch (err) {
-      console.warn('⚠️ Native Stockfish failed, falling back to WASM:', err.message);
+      logger.warn('Native Stockfish failed, falling back to WASM:', err.message);
       nativeEngine = null;
     }
   }
@@ -42,7 +43,7 @@ async function getEngine() {
     const initWasm = require('stockfish');
     wasmEngine = await initWasm('lite-single');
     await waitForWasmReady(wasmEngine);
-    console.log('✅ Stockfish WASM engine loaded (fallback mode)');
+    logger.info('Stockfish WASM engine loaded (fallback mode)');
     return wasmEngine;
   } catch (err) {
     throw new Error('No Stockfish engine available: ' + err.message);
@@ -137,8 +138,12 @@ async function analyzeFen(fen, depth = 20, options = {}) {
 }
 
 function analyzeNative(engine, fen, depth, multiPv) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
+    let timeouted = false;
     const timeout = setTimeout(() => {
+      timeouted = true;
+      engine.stdout.removeListener('data', onData);
+      engine.stdout.removeListener('data', onBestMove);
       resolve({
         evalCp: 0, isMate: false, mateIn: 0,
         bestMoveUci: null, bestMoveSan: null, pv: [],
@@ -154,6 +159,7 @@ function analyzeNative(engine, fen, depth, multiPv) {
     let buffer = '';
 
     const onData = (data) => {
+      if (timeouted) return;
       buffer += data.toString();
       const lines = buffer.split('\n');
       buffer = lines.pop();
@@ -213,6 +219,7 @@ function analyzeNative(engine, fen, depth, multiPv) {
     };
 
     const onBestMove = (data) => {
+      if (timeouted) return;
       const trimmed = data.toString().trim();
       if (trimmed.startsWith('bestmove')) {
         clearTimeout(timeout);

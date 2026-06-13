@@ -243,6 +243,9 @@ exports.analyzeBotGame = async (req, res) => {
     game.analysis = analysis._id;
     await game.save();
 
+    const queueService = require('../services/analysisQueueService');
+    queueService.processNextInQueue().catch(() => {});
+
     res.json({ success: true, analysisId: analysis._id, message: 'Analysis queued' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to queue analysis', error: error.message });

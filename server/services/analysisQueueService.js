@@ -98,5 +98,35 @@ async function processQueueBatch(batchSize = 3) {
 module.exports = {
   queueGameAnalysis,
   processNextInQueue,
-  processQueueBatch
+  processQueueBatch,
+  startQueueProcessor,
+  stopQueueProcessor
 };
+
+let processorInterval = null;
+
+const POLL_INTERVAL = parseInt(process.env.ANALYSIS_POLL_INTERVAL || '2000', 10);
+
+function startQueueProcessor() {
+  if (processorInterval) return;
+  processorInterval = setInterval(async () => {
+    try {
+      const result = await processNextInQueue();
+      if (result.processed) {
+        logger.info('Queue processor completed job', { analysisId: result.analysisId });
+      }
+    } catch (err) {
+      logger.error('Queue processor error:', err.message);
+    }
+  }, POLL_INTERVAL);
+  processorInterval.unref();
+  logger.info(`Queue processor started (poll every ${POLL_INTERVAL}ms)`);
+}
+
+function stopQueueProcessor() {
+  if (processorInterval) {
+    clearInterval(processorInterval);
+    processorInterval = null;
+    logger.info('Queue processor stopped');
+  }
+}

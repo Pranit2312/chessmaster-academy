@@ -165,6 +165,8 @@ mongoose
     logger.info('MongoDB Connected');
     await hydrateBalanceCache();
     startCronJobs();
+    const { startQueueProcessor } = require('./services/analysisQueueService');
+    startQueueProcessor();
     socketHandler.initialize();
   })
   .catch((err) => {
@@ -175,6 +177,22 @@ mongoose
 // --- Graceful shutdown ---
 const shutdown = (signal) => {
   logger.info(`${signal} received — shutting down gracefully`);
+
+  // Stop matchmaking and clock polling
+  const matchmaking = require('./services/matchmakingService');
+  matchmaking.stop();
+
+  const gameEngine = require('./services/gameEngine');
+  gameEngine.stopClockTick();
+
+  // Quit Stockfish engine
+  const { quit: quitEngine } = require('./services/stockfishEngine');
+  quitEngine();
+
+  // Stop analysis queue processor
+  const { stopQueueProcessor } = require('./services/analysisQueueService');
+  stopQueueProcessor();
+
   server.close(() => {
     mongoose.connection.close(false).then(() => {
       logger.info('MongoDB connection closed');
@@ -183,7 +201,7 @@ const shutdown = (signal) => {
   });
   setTimeout(() => {
     logger.error('Forced shutdown after timeout');
-    process.exit(1);
+    process.exit(0);
   }, 10000).unref();
 };
 

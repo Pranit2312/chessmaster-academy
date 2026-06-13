@@ -3,6 +3,7 @@ const Game = require('../models/Game');
 const Rating = require('../models/Rating');
 const User = require('../models/User');
 const { calculateNewRating, getCategory, getScore } = require('./ratingSystem');
+const { submitTournamentGameResult } = require('./pairingEngine');
 const logger = require('../utils/logger');
 
 const CLOCK_TICK_MS = 1000;
@@ -101,6 +102,9 @@ class GameEngine {
           ratingChanges: ratingResult
         });
       }
+
+      // Auto-submit tournament result
+      submitTournamentGameResult(game).catch(err => logger.error('Tournament result submission failed', err.message));
 
       this.activeGames.delete(gameId);
     } catch (err) {

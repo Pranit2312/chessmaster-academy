@@ -11,22 +11,56 @@ const api = axios.create({
 });
 
 // ======================
-// TOKEN INTERCEPTOR
+// REQUEST DEDUPLICATION
 // ======================
+// Prevents duplicate in-flight GET requests to the same URL.
+// If a GET is already pending, subsequent identical GETs reuse the same promise.
+const inflightRequests = new Map();
+
 api.interceptors.request.use((config) => {
+  // Attach auth token
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Only dedup GET requests
+  if (config.method === 'get') {
+    const key = `${config.url}|${JSON.stringify(config.params || {})}`;
+    const existing = inflightRequests.get(key);
+    if (existing) {
+      // Cancel this duplicate — return the pending promise
+      return Promise.reject({ __dedup: true, key, config });
+    }
+    // Track this request
+    let resolvePromise;
+    inflightRequests.set(key, new Promise((resolve) => { resolvePromise = resolve; }));
+    config.__dedupKey = key;
+    config.__dedupResolve = resolvePromise;
+  }
   return config;
 });
 
-// ======================
-// RESPONSE INTERCEPTOR
-// ======================
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    if (res.config?.__dedupKey) {
+      const resolve = res.config.__dedupResolve;
+      inflightRequests.delete(res.config.__dedupKey);
+      if (resolve) resolve();
+    }
+    return res;
+  },
   (error) => {
+    // Handle dedup cancellation gracefully
+    if (error?.__dedup) {
+      const { key, config } = error;
+      // Wait for the original request to finish, then replay this one
+      return inflightRequests.get(key).then(() => api(config));
+    }
+    if (error.config?.__dedupKey) {
+      inflightRequests.delete(error.config.__dedupKey);
+      const resolve = error.config.__dedupResolve;
+      if (resolve) resolve();
+    }
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       window.location.href = '/login';
@@ -325,7 +359,8 @@ export const tournamentAPI = {
   getStandings: (id) => api.get(`/tournaments/${id}/standings`),
   getPairings: (id) => api.get(`/tournaments/${id}/pairings`),
   getMy: () => api.get('/tournaments/my'),
-  getStats: () => api.get('/tournaments/stats')
+  getStats: () => api.get('/tournaments/stats'),
+  arenaPair: (id) => api.post(`/tournaments/${id}/arena-pair`)
 };
 
 // ======================

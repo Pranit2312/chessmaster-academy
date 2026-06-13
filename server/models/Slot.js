@@ -42,6 +42,16 @@ const slotSchema = new mongoose.Schema({
     ref: 'Booking',
     default: null
   },
+  capacity: {
+    type: Number,
+    default: 1,
+    min: 1
+  },
+  currentBookings: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   status: {
     type: String,
     enum: ['available', 'booked', 'completed', 'expired', 'cancelled'],

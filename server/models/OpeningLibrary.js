@@ -125,7 +125,6 @@ const openingLibrarySchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Indexes
-openingLibrarySchema.index({ ecoCode: 1 });
 openingLibrarySchema.index({ name: 'text' });
 openingLibrarySchema.index({ tags: 1 });
 

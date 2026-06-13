@@ -6,7 +6,7 @@ import { gameAPI } from '../utils/api';
 import '../styles/PlayPage.css';
 
 export default function GameReplayPage() {
-  const { id } = useParams();
+  const { gameId: id } = useParams();
   const [game, setGame] = useState(null);
   const [chess] = useState(new Chess());
   const [fen, setFen] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
@@ -19,6 +19,10 @@ export default function GameReplayPage() {
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadGame() {
+    if (!id || id === 'undefined' || id === 'null') {
+      setGame({ error: true });
+      return;
+    }
     try {
       const res = await gameAPI.getReplay(id);
       const g = res.data.game;
@@ -48,6 +52,7 @@ export default function GameReplayPage() {
   }
 
   if (!game) return <div className="game-page"><p>Loading...</p></div>;
+  if (game.error) return <div className="game-page"><p>Invalid game ID. <a href="/my-games">Back to My Games</a></p></div>;
 
   return (
     <div className="game-page">

@@ -2,25 +2,30 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 
-const PuzzleBoard = ({ fen, playerSide, onSolve, solution, boardWidth }) => {
-  const [chess] = useState(() => new Chess(fen));
+const PuzzleBoard = ({ fen, playerSide, onSolve, boardWidth }) => {
+  const [chess] = useState(() => {
+    try { return new Chess(fen); } catch { return new Chess(); }
+  });
   const [message, setMessage] = useState(null);
   const [messageType, setMessageType] = useState(null);
   const [currentFen, setCurrentFen] = useState(fen);
   const [attempts, setAttempts] = useState(0);
 
   useEffect(() => {
-    try { chess.load(fen); setCurrentFen(fen); setMessage(null); setMessageType(null); setAttempts(0); } catch {}
+    try {
+      chess.load(fen);
+      setCurrentFen(fen);
+      setMessage(null);
+      setMessageType(null);
+      setAttempts(0);
+    } catch (e) {
+      console.warn('Invalid puzzle FEN:', e);
+    }
   }, [fen, chess]);
 
   const onDrop = useCallback((sourceSquare, targetSquare) => {
     try {
-      const move = chess.move({
-        from: sourceSquare,
-        to: targetSquare,
-        promotion: 'q'
-      });
-
+      const move = chess.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
       if (move) {
         setCurrentFen(chess.fen());
         setAttempts(prev => prev + 1);
@@ -31,13 +36,15 @@ const PuzzleBoard = ({ fen, playerSide, onSolve, solution, boardWidth }) => {
 
     setMessage('Invalid move! Try again.');
     setMessageType('error');
-    setTimeout(() => setMessage(null), 2000);
+    setTimeout(() => { setMessage(null); setMessageType(null); }, 2000);
     return false;
   }, [chess, onSolve]);
 
   const customStyles = {};
   if (messageType === 'success') {
-    customStyles[chess.turn() === 'w' ? 'e1' : 'e8'] = { backgroundColor: 'rgba(0, 255, 0, 0.4)' };
+    try {
+      customStyles[chess.turn() === 'w' ? 'e1' : 'e8'] = { backgroundColor: 'rgba(0, 255, 0, 0.4)' };
+    } catch {}
   }
 
   return (

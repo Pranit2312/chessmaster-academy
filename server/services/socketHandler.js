@@ -7,6 +7,7 @@ const gameEngine = require('./gameEngine');
 const matchmaking = require('./matchmakingService');
 const { getCategory } = require('./ratingSystem');
 const { queueGameAnalysis } = require('../services/analysisQueueService');
+const { submitTournamentGameResult } = require('../services/pairingEngine');
 const logger = require('../utils/logger');
 
 class SocketHandler {
@@ -194,6 +195,9 @@ class SocketHandler {
       // Auto-queue Stockfish analysis
       queueGameAnalysis(gameId).catch(err => logger.error('Auto-analysis failed', err.message));
 
+      // Auto-submit tournament result
+      submitTournamentGameResult(game).catch(err => logger.error('Tournament result submission failed', err.message));
+
       gameEngine.activeGames.delete(gameId);
     } catch (err) {
       logger.error('Finalize game error', err.message);
@@ -233,6 +237,9 @@ class SocketHandler {
 
     // Auto-queue Stockfish analysis
     queueGameAnalysis(gameId).catch(err => logger.error('Auto-analysis failed', err.message));
+
+    // Auto-submit tournament result
+    submitTournamentGameResult(game).catch(err => logger.error('Tournament result submission failed', err.message));
 
     gameEngine.activeGames.delete(gameId);
   }
