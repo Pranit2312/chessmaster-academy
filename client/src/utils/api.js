@@ -84,6 +84,7 @@ export const authAPI = {
 // USERS
 // ======================
 export const userAPI = {
+  getMe: () => api.get('/auth/me'),
   getCoaches: (params) => api.get('/users/coaches', { params }),
   getCoachById: (id) => api.get(`/users/coach/${id}`),
   getUserProfile: (id) => api.get(`/users/profile/${id}`),
@@ -292,6 +293,7 @@ export const puzzleAPI = {
   getRecommended: (params) => api.get('/puzzles/recommended', { params }),
   check: (data) => api.post('/puzzles/check', data),
   getStats: () => api.get('/puzzles/stats'),
+  getThemes: () => api.get('/puzzles/themes'),
   getProfile: () => api.get('/puzzles/profile'),
   markDailySolved: () => api.post('/puzzles/daily/solved'),
   getHint: (puzzleId) => api.get(`/puzzles/${puzzleId}/hint`),
@@ -347,12 +349,14 @@ export const adminAPI = {
 export const tournamentAPI = {
   getAll: (params) => api.get('/tournaments', { params }),
   getActive: () => api.get('/tournaments/active'),
-  getById: (id) => api.get(`/tournaments/${id}`),
+  getById: (id, params) => api.get(`/tournaments/${id}`, { params }),
   create: (data) => api.post('/tournaments', data),
   update: (id, data) => api.put(`/tournaments/${id}`, data),
   remove: (id) => api.delete(`/tournaments/${id}`),
+  cancel: (id) => api.delete(`/tournaments/${id}`),
   register: (id) => api.post(`/tournaments/${id}/register`),
   unregister: (id) => api.post(`/tournaments/${id}/unregister`),
+  removePlayer: (id, playerId) => api.delete(`/tournaments/${id}/players/${playerId}`),
   start: (id) => api.post(`/tournaments/${id}/start`),
   nextRound: (id) => api.post(`/tournaments/${id}/next-round`),
   end: (id) => api.post(`/tournaments/${id}/end`),
@@ -360,7 +364,9 @@ export const tournamentAPI = {
   getPairings: (id) => api.get(`/tournaments/${id}/pairings`),
   getMy: () => api.get('/tournaments/my'),
   getStats: () => api.get('/tournaments/stats'),
-  arenaPair: (id) => api.post(`/tournaments/${id}/arena-pair`)
+  getProfileStats: () => api.get('/tournaments/profile-stats'),
+  arenaPair: (id) => api.post(`/tournaments/${id}/arena-pair`),
+  joinByInvite: (data) => api.post('/tournaments/join-by-invite', data)
 };
 
 // ======================

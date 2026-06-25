@@ -2,7 +2,7 @@
   max-width: 1000px;
   margin: 2rem auto;
   padding: 0 1.5rem;
-  background-color: var(--bg-secondary);
+  background-color: var(--surface-secondary);
 }
 
 .wallet-header {
@@ -20,7 +20,7 @@
 }
 
 .balance-card {
-  background: linear-gradient(135deg, var(--primary-color) 0%, #1e40af 100%);
+  background: linear-gradient(135deg, var(--brand-600) 0%, #1e40af 100%);
   color: white;
   padding: 2.5rem;
   border-radius: 20px;
@@ -55,10 +55,10 @@
 }
 
 .transactions-list {
-  background-color: var(--card-bg);
+  background-color: var(--surface-primary);
   border-radius: 12px;
   box-shadow: var(--shadow);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-light);
   overflow: hidden;
 }
 
@@ -67,7 +67,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.25rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .transaction-item:last-child {

@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const Wallet = require('../models/Wallet');
+const logger = require('../utils/logger');
 
 // ======================
 // Generate JWT Token
@@ -16,7 +17,7 @@ const generateToken = (id) => {
 // ======================
 exports.register = async (req, res, next) => {
   try {
-    console.log("📥 Incoming Register Data:", req.body);
+    logger.debug('Register request received');
 
     const {
       name,
@@ -69,8 +70,8 @@ exports.register = async (req, res, next) => {
       email,
       password,
       role: userRole,
-      age: age || 0,
-      chessRating: chessRating || 0,
+      age: age || undefined,
+      chessRating: chessRating || undefined,
       ratingType: ratingType || "Chess.com",
       country: country || "",
       timezone: timezone || "Asia/Kolkata"
@@ -128,7 +129,7 @@ exports.register = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error("🔥 REGISTER ERROR FULL:", error);
+    logger.error('Register error:', error.message);
     next(error);
   }
 };
@@ -138,15 +139,11 @@ exports.register = async (req, res, next) => {
 // ======================
 exports.login = async (req, res, next) => {
   try {
-    console.log("LOGIN START");
-
     const { email, password } = req.body;
 
-    console.log("EMAIL =", email);
+    logger.debug('Login attempt', { email });
 
     const user = await User.findOne({ email });
-
-    console.log("USER FOUND =", !!user);
 
     if (!user) {
       return res.status(401).json({
@@ -155,15 +152,16 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    console.log("CHECKING PASSWORD");
-
     const isPasswordCorrect = await user.comparePassword(password);
 
-    console.log("PASSWORD MATCH =", isPasswordCorrect);
+    if (!isPasswordCorrect) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password"
+      });
+    }
 
     const token = generateToken(user._id);
-
-    console.log("TOKEN GENERATED");
 
     res.status(200).json({
       success: true,
@@ -177,8 +175,7 @@ exports.login = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.log("LOGIN CRASHED");
-    console.error(error);
+    logger.error('Login error:', error.message);
     next(error);
   }
 };

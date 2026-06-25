@@ -1,5 +1,5 @@
 .course-player-page {
-  background-color: var(--bg-primary);
+  background-color: var(--surface-primary);
   min-height: calc(100vh - 80px);
   color: var(--text-primary);
 }
@@ -13,7 +13,7 @@
 .video-section {
   padding: 2rem;
   overflow-y: auto;
-  background-color: var(--bg-secondary);
+  background-color: var(--surface-secondary);
 }
 
 .video-player {
@@ -50,8 +50,8 @@
 }
 
 .curriculum-sidebar {
-  background-color: var(--card-bg);
-  border-left: 1px solid var(--border-color);
+  background-color: var(--surface-primary);
+  border-left: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -59,8 +59,8 @@
 
 .progress-bar {
   padding: 1.5rem;
-  background-color: var(--bg-primary);
-  border-bottom: 1px solid var(--border-color);
+  background-color: var(--surface-primary);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .progress-label {
@@ -73,7 +73,7 @@
 
 .progress-fill {
   height: 6px;
-  background-color: var(--primary-color);
+  background-color: var(--brand-600);
   border-radius: 3px;
   transition: width 0.3s ease;
 }
@@ -90,14 +90,14 @@
 
 .chapter-header {
   padding: 1rem;
-  background-color: var(--bg-secondary);
+  background-color: var(--surface-secondary);
   border-radius: 8px;
   margin-bottom: 0.5rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-light);
 }
 
 .lesson-item {
@@ -117,15 +117,15 @@
 
 .lesson-item.active {
   background-color: rgba(37, 99, 235, 0.1);
-  color: var(--primary-color);
+  color: var(--brand-600);
   font-weight: 600;
 }
 
 .pgn-viewer-container {
   padding: 2rem;
-  background-color: var(--card-bg);
+  background-color: var(--surface-primary);
   border-radius: 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-light);
 }
 
 .pgn-header {
@@ -134,7 +134,7 @@
   align-items: center;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .pgn-header h2 {
@@ -144,7 +144,7 @@
 }
 
 .pgn-badge {
-  background-color: var(--primary-color);
+  background-color: var(--brand-600);
   color: white;
   padding: 0.4rem 1rem;
   border-radius: 20px;
@@ -162,7 +162,7 @@
 .pgn-board-placeholder {
   width: 100%;
   aspect-ratio: 1;
-  background-color: var(--bg-secondary);
+  background-color: var(--surface-secondary);
   border-radius: 8px;
   overflow: hidden;
   position: relative;
@@ -225,8 +225,8 @@
 
 .pgn-box {
   flex-grow: 1;
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1.5rem;
@@ -265,7 +265,7 @@
   .curriculum-sidebar {
     height: 600px;
     border-left: none;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid var(--border-light);
   }
 
   .pgn-main-view {

@@ -8,16 +8,19 @@ const coachPuzzleController = require('../controllers/coachPuzzleController');
 // =====================
 // PUZZLE ENDPOINTS
 // =====================
+router.get('/health', puzzleController.health);
 router.get('/random', protect, puzzleController.getRandom);
 router.get('/daily', protect, puzzleController.getDaily);
 router.get('/theme/:theme', protect, puzzleController.getByTheme);
 router.get('/rating/:range', protect, puzzleController.getByRating);
+router.get('/by-rating/:rating', protect, puzzleController.getBySingleRating);
 router.get('/recommended', protect, puzzleController.getRecommended);
+router.get('/search', protect, puzzleController.search);
 router.post('/check', protect, puzzleController.check);
 router.get('/stats', protect, puzzleController.getStats);
+router.get('/themes', protect, puzzleController.getThemes);
 router.get('/profile', protect, puzzleController.getProfile);
 router.post('/daily/solved', protect, puzzleController.markDailySolved);
-router.get('/:puzzleId/hint', protect, puzzleController.getHint);
 
 // =====================
 // PUZZLE RUSH ENDPOINTS
@@ -39,5 +42,16 @@ router.put('/coach/:id', protect, restrictTo('coach'), coachPuzzleController.upd
 router.delete('/coach/:id', protect, restrictTo('coach'), coachPuzzleController.deletePuzzle);
 router.post('/coach/:id/like', protect, coachPuzzleController.likePuzzle);
 router.post('/coach/:id/save', protect, coachPuzzleController.savePuzzle);
+
+// =====================
+// DEBUG (development only)
+// =====================
+router.get('/debug/:id', protect, puzzleController.debugPuzzle);
+
+// =====================
+// GENERIC PUZZLE LOOKUP (must be last — catches any unmatched /:puzzleId)
+// =====================
+router.get('/:puzzleId/hint', protect, puzzleController.getHint);
+router.get('/:puzzleId', protect, puzzleController.getById);
 
 module.exports = router;

@@ -8,13 +8,14 @@ import SlotCard from "../components/SlotCard";
 import StudentAIWidget from "../components/dashboard/StudentAIWidget";
 import StudentPuzzleWidget from "../components/dashboard/StudentPuzzleWidget";
 import "../styles/StudentDashboard.css";
-import "../styles/GameAnalysisPage.css";
 
-const StatCard = ({ icon, value, label }) => (
-  <div className="stat-card">
-    <span className="stat-icon">{icon}</span>
-    <h3>{value}</h3>
-    <p>{label}</p>
+const StatCard = ({ icon, value, label, type }) => (
+  <div className="dash-stat-card">
+    <div className={`dash-stat-icon ${type}`}>{icon}</div>
+    <div className="dash-stat-info">
+      <h3>{value}</h3>
+      <p>{label}</p>
+    </div>
   </div>
 );
 
@@ -50,13 +51,13 @@ const StudentDashboard = () => {
       setContinueLearning(
         enrollments.filter(e => e.progressPercentage < 100).slice(0, 3)
       );
-      
+
       const now = new Date();
-      const activeBookings = bookings.filter(b => 
-        b.sessionStatus === 'scheduled' && 
+      const activeBookings = bookings.filter(b =>
+        b.sessionStatus === 'scheduled' &&
         new Date(b.slot?.startTime) > now
       );
-      
+
       setRecentBookings(activeBookings.slice(0, 3));
       setUpcomingSlots(slots.slice(0, 6));
       setWallet(walletRes.data?.data || walletRes.data?.wallet || null);
@@ -111,162 +112,146 @@ const StudentDashboard = () => {
 
   return (
     <div className="student-dashboard">
-      {/* WELCOME HEADER */}
-      <header className="dashboard-header">
-        <div>
-          <h2>Welcome back, {user?.name}! 👋</h2>
-          <p>Continue your chess learning journey</p>
+      {/* WELCOME CARD */}
+      <div className="welcome-card">
+        <div className="welcome-content">
+          <h1>Welcome back, {user?.name}</h1>
+          <p>Continue your chess learning journey. You have {stats.enrolledCourses} active course{stats.enrolledCourses !== 1 ? 's' : ''} and {stats.upcomingSessions} upcoming session{stats.upcomingSessions !== 1 ? 's' : ''}.</p>
         </div>
-        <div className="header-actions">
-          <button onClick={() => navigate('/courses')} className="btn btn-secondary">
+        <div className="welcome-actions">
+          <button onClick={() => navigate('/courses')} className="btn">
             Browse Courses
           </button>
           <button onClick={handleBrowseCoaches} className="btn btn-primary">
             Book Coaching
           </button>
         </div>
-      </header>
-
-      {/* STATS GRID */}
-      <div className="stats-grid">
-        <StatCard 
-          icon="📈" 
-          value={stats.chessRating} 
-          label="Your Rating" 
-        />
-        <StatCard 
-          icon="📚" 
-          value={stats.enrolledCourses} 
-          label="Enrolled Courses" 
-        />
-        <StatCard 
-          icon="✅" 
-          value={stats.completedCourses} 
-          label="Completed Courses" 
-        />
-        <StatCard 
-          icon="🎯" 
-          value={stats.upcomingSessions} 
-          label="Upcoming Sessions" 
-        />
       </div>
 
-      <div className="dashboard-content-grid">
-        <div className="main-content">
-          {/* CONTINUE LEARNING SECTION */}
-          {continueLearning.length > 0 && (
-            <section className="dashboard-section">
-              <h3>Continue Learning</h3>
-              <div className="continue-learning-grid">
-                {continueLearning.map(enrollment => (
-                  <div key={enrollment._id} className="learning-card">
-                    <img 
-                      src={enrollment.course?.thumbnail || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%23e2e8f0'/%3E%3Ctext x='160' y='90' text-anchor='middle' fill='%2394a3b8' font-size='14'%3ECourse%3C/text%3E%3C/svg%3E"} 
-                      alt={enrollment.course?.title}
-                    />
-                    <div className="learning-card-info">
-                      <h4>{enrollment.course?.title}</h4>
-                      <div className="progress-container">
-                        <div className="progress-bar">
-                          <div 
-                            className="progress-fill" 
-                            style={{ width: `${enrollment.progressPercentage}%` }}
-                          ></div>
-                        </div>
-                        <span>{enrollment.progressPercentage}%</span>
-                      </div>
-                      <button
-                        className="btn btn-primary btn-sm btn-block"
-                        onClick={() => handleContinueLearning(enrollment.course?._id)}
-                      >
-                        Continue
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+      {/* STATS ROW */}
+      <div className="stats-row">
+        <StatCard icon="📈" value={stats.chessRating} label="Your Rating" type="rating" />
+        <StatCard icon="📚" value={stats.enrolledCourses} label="Enrolled Courses" type="courses" />
+        <StatCard icon="✅" value={stats.completedCourses} label="Completed" type="completed" />
+        <StatCard icon="🎯" value={stats.upcomingSessions} label="Upcoming Sessions" type="sessions" />
+      </div>
 
-          {/* RECENT BOOKINGS */}
-          {recentBookings.length > 0 && (
-            <section className="dashboard-section">
-              <div className="section-header">
-                <h3>Upcoming Sessions</h3>
-                <button 
-                  className="btn btn-text"
-                  onClick={() => navigate('/my-bookings')}
-                >
+      {/* MAIN GRID */}
+      <div className="dash-grid">
+        <div className="dash-main">
+          {/* CONTINUE LEARNING */}
+          {continueLearning.length > 0 && (
+            <div className="dash-section">
+              <div className="dash-section-header">
+                <h3>Continue Learning</h3>
+                <button className="btn btn-sm btn-ghost" onClick={() => navigate('/my-courses')}>
                   View All
                 </button>
               </div>
-              <div className="bookings-list">
+              <div className="dash-section-body">
+                <div className="continue-grid">
+                  {continueLearning.map(enrollment => (
+                    <div key={enrollment._id} className="learning-card">
+                      <img
+                        src={enrollment.course?.thumbnail || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%23e2e8f0'/%3E%3Ctext x='160' y='90' text-anchor='middle' fill='%2394a3b8' font-size='14'%3ECourse%3C/text%3E%3C/svg%3E"}
+                        alt={enrollment.course?.title}
+                      />
+                      <div className="learning-card-body">
+                        <h4>{enrollment.course?.title}</h4>
+                        <div className="progress-row">
+                          <div className="progress-track">
+                            <div className="progress-fill" style={{ width: `${enrollment.progressPercentage}%` }} />
+                          </div>
+                          <span>{enrollment.progressPercentage}%</span>
+                        </div>
+                        <button
+                          className="btn btn-primary btn-sm btn-block"
+                          onClick={() => handleContinueLearning(enrollment.course?._id)}
+                        >
+                          Continue
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* UPCOMING SESSIONS */}
+          {recentBookings.length > 0 && (
+            <div className="dash-section">
+              <div className="dash-section-header">
+                <h3>Upcoming Sessions</h3>
+                <button className="btn btn-sm btn-ghost" onClick={() => navigate('/my-bookings')}>
+                  View All
+                </button>
+              </div>
+              <div className="dash-section-body">
                 {recentBookings.map(booking => (
-                  <BookingCard 
-                    key={booking._id} 
-                    booking={booking} 
+                  <BookingCard
+                    key={booking._id}
+                    booking={booking}
                     isCoach={false}
                     onCancel={handleCancelBooking}
                   />
                 ))}
               </div>
-            </section>
+            </div>
           )}
 
-          {/* AI GAME ANALYSIS (Phase 2) */}
+          {/* AI & PUZZLE WIDGETS */}
           <StudentAIWidget />
-
-          {/* DAILY PUZZLE WIDGET (Phase 2) */}
           <StudentPuzzleWidget />
 
           {/* AVAILABLE SLOTS */}
-          <section className="dashboard-section">
-            <div className="section-header">
-              <h3>Available Slots</h3>
-              <button 
-                className="btn btn-text"
-                onClick={handleBrowseCoaches}
-              >
+          <div className="dash-section">
+            <div className="dash-section-header">
+              <h3>Available Coaching Slots</h3>
+              <button className="btn btn-sm btn-ghost" onClick={handleBrowseCoaches}>
                 Browse Coaches
               </button>
             </div>
-            {upcomingSlots.length > 0 ? (
-              <div className="slot-grid">
-                {upcomingSlots.map(slot => (
-                  <SlotCard 
-                    key={slot._id} 
-                    slot={slot} 
-                    isCoach={false}
-                    onBook={handleBookSlot}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="empty-state-mini">
-                <p>No slots available right now.</p>
-              </div>
-            )}
-          </section>
+            <div className="dash-section-body">
+              {upcomingSlots.length > 0 ? (
+                <div className="slot-grid">
+                  {upcomingSlots.map(slot => (
+                    <SlotCard
+                      key={slot._id}
+                      slot={slot}
+                      isCoach={false}
+                      onBook={handleBookSlot}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-mini">
+                  <p>No slots available right now.</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        <aside className="sidebar-content">
-          {/* MY COURSES CARD */}
-          <div className="my-courses-card-highlight" onClick={() => navigate('/my-courses')}>
-            <div className="card-header">
-              <h3>🎓 My Courses</h3>
+        {/* SIDEBAR */}
+        <div className="dash-sidebar">
+          {/* MY COURSES */}
+          <div className="courses-highlight" onClick={() => navigate('/my-courses')}>
+            <div className="courses-highlight-header">
+              <h3>My Courses</h3>
               <span className="badge">{stats.enrolledCourses}</span>
             </div>
             <p>Access your purchased courses and track your progress.</p>
-            <button className="btn btn-primary btn-sm btn-block">
+            <button className="btn btn-sm btn-block">
               View All Courses
             </button>
           </div>
 
-          {/* WALLET SECTION */}
+          {/* WALLET */}
           {wallet && (
-            <div className="wallet-card-compact">
-              <h3>💳 My Wallet</h3>
-              <p className="wallet-amount">₹{wallet.balance?.toLocaleString() || 0}</p>
+            <div className="wallet-card">
+              <h3>Wallet</h3>
+              <p className="wallet-balance">₹{wallet.balance?.toLocaleString() || 0}</p>
               <div className="wallet-actions">
                 <button className="btn btn-primary btn-sm" onClick={() => navigate('/wallet')}>
                   Add Funds
@@ -279,39 +264,35 @@ const StudentDashboard = () => {
           )}
 
           {/* QUICK LINKS */}
-          <div className="quick-links">
+          <div className="quick-links-card">
             <h3>Quick Links</h3>
-            <ul>
-              <li onClick={() => navigate('/profile')}>👤 My Profile</li>
-              <li onClick={() => navigate('/my-courses')}>🎓 My Courses</li>
-              <li onClick={() => navigate('/my-bookings')}>📅 My Bookings</li>
-              <li onClick={() => navigate('/wallet')}>💰 Wallet</li>
-              <li onClick={() => navigate('/analysis')}>♟️ Game Analysis</li>
-            </ul>
+            <div className="quick-link-item" onClick={() => navigate('/profile')}>My Profile</div>
+            <div className="quick-link-item" onClick={() => navigate('/my-courses')}>My Courses</div>
+            <div className="quick-link-item" onClick={() => navigate('/my-bookings')}>My Bookings</div>
+            <div className="quick-link-item" onClick={() => navigate('/wallet')}>Wallet</div>
+            <div className="quick-link-item" onClick={() => navigate('/analysis')}>Game Analysis</div>
           </div>
-        </aside>
+        </div>
       </div>
 
       {/* EMPTY STATE */}
       {continueLearning.length === 0 && recentBookings.length === 0 && (
-        <section className="dashboard-section empty-state">
-          <h3>Ready to Learn?</h3>
-          <p>Enroll in courses or book a coaching session to get started!</p>
-          <div className="empty-actions">
-            <button 
-              className="btn btn-primary"
-              onClick={() => navigate('/courses')}
-            >
-              Browse Courses
-            </button>
-            <button 
-              className="btn btn-secondary"
-              onClick={handleBrowseCoaches}
-            >
-              Browse Coaches
-            </button>
+        <div className="dash-section">
+          <div className="dash-section-body">
+            <div className="empty-state">
+              <h3>Ready to Learn?</h3>
+              <p>Enroll in courses or book a coaching session to get started!</p>
+              <div className="btn-group">
+                <button className="btn btn-primary" onClick={() => navigate('/courses')}>
+                  Browse Courses
+                </button>
+                <button className="btn btn-secondary" onClick={handleBrowseCoaches}>
+                  Browse Coaches
+                </button>
+              </div>
+            </div>
           </div>
-        </section>
+        </div>
       )}
     </div>
   );

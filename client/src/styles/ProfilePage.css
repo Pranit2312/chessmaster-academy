@@ -2,18 +2,18 @@
   max-width: 900px;
   margin: 2rem auto;
   padding: 0 1rem;
-  background-color: var(--bg-secondary);
+  background-color: var(--surface-secondary);
 }
 
 .profile-header {
-  background-color: var(--card-bg);
+  background-color: var(--surface-primary);
   padding: 2rem;
   border-radius: 12px;
   display: flex;
   align-items: center;
   gap: 2rem;
   box-shadow: var(--shadow);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-light);
   margin-bottom: 2rem;
 }
 
@@ -22,7 +22,7 @@
   height: 100px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--primary-color);
+  border: 3px solid var(--brand-600);
 }
 
 .profile-info h2 {
@@ -37,17 +37,17 @@
 }
 
 .profile-form, .profile-details {
-  background-color: var(--card-bg);
+  background-color: var(--surface-primary);
   padding: 2rem;
   border-radius: 12px;
   box-shadow: var(--shadow);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-light);
 }
 
 .form-section, .detail-section {
   margin-bottom: 2rem;
   padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .form-section h3, .detail-section h3 {
@@ -66,8 +66,8 @@
 .form-group input, .form-group select, .form-group textarea {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  background-color: var(--surface-primary);
   color: var(--text-primary);
   border-radius: 6px;
 }

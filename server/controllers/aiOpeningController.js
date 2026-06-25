@@ -2,6 +2,7 @@ const OpeningLibrary = require('../models/OpeningLibrary');
 const { getOpeningRecommendations, getSkillLevelFromRating, analyzeUserOpenings } = require('../services/openingRecommendationService');
 const { StockfishAnalysis } = require('../models/Analysis');
 const { ensureOpenings } = require('../utils/seedOpenings');
+const { deepenOpening, deepenAllOpenings, fetchLichessMoves } = require('../services/openingApiService');
 
 exports.seedOpenings = async (req, res) => {
   try {
@@ -122,5 +123,65 @@ exports.getUserOpeningStats = async (req, res) => {
     res.json({ success: true, stats, totalGames: analyses.length });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to get opening stats', error: error.message });
+  }
+};
+
+exports.deepenOpening = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const targetDepth = parseInt(req.query.depth) || 15;
+    const opening = await OpeningLibrary.findById(id).lean();
+    if (!opening) return res.status(404).json({ success: false, message: 'Opening not found' });
+
+    const result = await deepenOpening(opening, targetDepth);
+    if (result.error) return res.status(400).json({ success: false, message: result.error });
+
+    if (result.extended > 0) {
+      const newFen = require('../services/openingApiService').fenAfterMoves(opening.startingFen, result.moves);
+      await OpeningLibrary.updateOne(
+        { _id: opening._id },
+        { $set: { moveSequence: result.moves, currentFen: newFen || opening.currentFen, updatedAt: new Date() } }
+      );
+    }
+
+    res.json({ success: true, extended: result.extended, totalMoves: result.moves.length, moves: result.moves });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.deepenAllOpenings = async (req, res) => {
+  try {
+    const targetDepth = parseInt(req.query.depth) || 15;
+    const result = await deepenAllOpenings(targetDepth);
+    res.json({ success: true, ...result, message: `Deepened ${result.totalOpenings} openings by ${result.totalExtended} total moves` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.exploreByFen = async (req, res) => {
+  try {
+    const { fen } = req.query;
+    if (!fen) return res.status(400).json({ success: false, message: 'fen parameter required' });
+
+    const data = await fetchLichessMoves(fen);
+    if (!data) return res.status(503).json({ success: false, message: 'Opening explorer unavailable' });
+
+    const chess = new (require('chess.js').Chess)(fen);
+    const moves = (data.moves || []).map(m => {
+      const uci = m.uci;
+      let san = '';
+      try {
+        const test = new (require('chess.js').Chess)(fen);
+        const move = test.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.length > 4 ? uci[4] : undefined });
+        san = move?.san || uci;
+      } catch { san = uci; }
+      return { uci, san, total: m.white + m.draw + m.black, whitePct: ((m.white / (m.white + m.draw + m.black)) * 100).toFixed(1), blackPct: ((m.black / (m.white + m.draw + m.black)) * 100).toFixed(1), drawPct: ((m.draw / (m.white + m.draw + m.black)) * 100).toFixed(1) };
+    });
+
+    res.json({ success: true, fen, opening: data.opening || null, moves, totalGames: data.white + data.draw + data.black });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };

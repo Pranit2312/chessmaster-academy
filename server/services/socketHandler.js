@@ -27,25 +27,35 @@ class SocketHandler {
     this.io.use(async (socket, next) => {
       try {
         const token = socket.handshake.auth?.token || socket.handshake.query?.token;
-        if (!token) return next(new Error('Authentication required'));
+        if (!token) {
+          logger.warn('Socket auth: no token provided');
+          return next(new Error('Authentication required'));
+        }
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await User.findById(decoded.id).select('-password');
-        if (!user) return next(new Error('User not found'));
+        if (!user) {
+          logger.warn('Socket auth: user not found for token');
+          return next(new Error('User not found'));
+        }
         socket.user = user;
+        logger.info(`Socket authenticated: ${user.name} (${user._id})`);
         next();
       } catch (e) {
+        logger.warn('Socket auth: invalid token', e.message);
         next(new Error('Invalid token'));
       }
     });
 
     this.io.on('connection', (socket) => this.handleConnection(socket));
     gameEngine.startClockTick(this.io);
+    logger.info('Socket.IO initialized');
   }
 
   handleConnection(socket) {
     const user = socket.user;
     this.onlineUsers.set(user._id.toString(), { socketId: socket.id, username: user.name, userId: user._id });
     socket.join(`user:${user._id}`);
+    logger.info(`Socket connected: ${user.name} (socket: ${socket.id})`);
 
     socket.emit('connected', { userId: user._id, username: user.name });
     this.broadcastOnlineUsers();
@@ -100,6 +110,7 @@ class SocketHandler {
   async handleMatchFound(match) {
     const gameId = new (require('mongoose').Types.ObjectId)();
     const timeControl = match.timeControl;
+    logger.info(`Match found: ${match.players[0].username} vs ${match.players[1].username} (${match.category})`);
 
     try {
       await Game.create({
@@ -119,6 +130,7 @@ class SocketHandler {
         },
         startedAt: new Date()
       });
+      logger.info(`Game created in DB: ${gameId}`);
     } catch (err) {
       logger.error('Failed to create game document', err.message);
       match.players.forEach(p => {
@@ -134,6 +146,7 @@ class SocketHandler {
       { userId: match.players[1].userId.toString(), color: 'black' }
     ];
     gameEngine.activeGames.set(gameId.toString(), gameEngine.createGameInstance(gameId.toString(), undefined, timeControl, players));
+    logger.info(`Game engine active: ${gameId}`);
 
     const room = `game:${gameId}`;
     match.players.forEach(p => {
@@ -145,6 +158,7 @@ class SocketHandler {
         color: p.userId === match.players[0].userId ? 'white' : 'black'
       });
     });
+    logger.info(`match:found emitted to both players for game ${gameId}`);
   }
 
   async handleGameMove(socket, data) {
@@ -448,6 +462,7 @@ class SocketHandler {
       matchmaking.leaveQueue(userId);
       this.onlineUsers.delete(userId);
       this.broadcastOnlineUsers();
+      logger.info(`Socket disconnected: ${socket.user?.name || userId} (socket: ${socket.id})`);
     }
   }
 

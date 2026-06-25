@@ -27,13 +27,13 @@ const userSchema = new mongoose.Schema({
   },
   age: {
     type: Number,
-    required: true,
+    default: 18,
     min: 5,
     max: 120
   },
   chessRating: {
     type: Number,
-    required: true,
+    default: 0,
     min: 0,
     max: 4000
   },
@@ -82,6 +82,7 @@ const userSchema = new mongoose.Schema({
   podiumFinishes: { type: Number, default: 0 },
   bestFinish: { type: String, default: '' },
   totalPrizeMoney: { type: Number, default: 0 },
+  totalTournamentGames: { type: Number, default: 0 },
 
   slots: [
     {
@@ -104,15 +105,13 @@ userSchema.pre('save', async function () {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
+const logger = require('../utils/logger');
+
 // Compare password method
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  console.log("COMPARE START");
-  console.log("Stored hash:", this.password);
-
+  logger.debug('Comparing password');
   const result = await bcrypt.compare(candidatePassword, this.password);
-
-  console.log("COMPARE RESULT:", result);
-
+  logger.debug('Password comparison complete');
   return result;
 };
 

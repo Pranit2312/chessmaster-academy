@@ -1,8 +1,11 @@
+const logger = require('../utils/logger');
+
 module.exports = (err, req, res, next) => {
-  console.error("🔥 Error Handler:", err);
+  logger.error(`Error Handler: ${err.message}`, { path: req.path, method: req.method, statusCode: err.statusCode || 500 });
+  logger.error(`Stack trace: ${err.stack}`);
 
   let statusCode = err.statusCode || 500;
-  let message = err.message || "Server Error";
+  let message = err.message || 'Server Error';
 
   if (err.name === 'CastError' && err.kind === 'ObjectId') {
     statusCode = 400;

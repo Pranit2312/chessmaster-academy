@@ -1,264 +1,494 @@
+/* ============================================
+   STUDENT DASHBOARD — Premium Layout
+   ============================================ */
+
 .student-dashboard {
-  padding: 2rem;
-  max-width: 1200px;
+  max-width: var(--container-max);
   margin: 0 auto;
-  background-color: var(--bg-secondary);
+  padding: var(--8) var(--6);
+  min-height: calc(100vh - var(--navbar-height));
 }
 
-.dashboard-header {
+/* ============================================
+   WELCOME HEADER
+   ============================================ */
+
+.welcome-card {
+  background: linear-gradient(135deg, var(--brand-900) 0%, var(--brand-700) 100%);
+  border-radius: var(--radius-2xl);
+  padding: var(--8) var(--8);
+  margin-bottom: var(--8);
+  color: white;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  gap: var(--6);
 }
 
-.dashboard-header h2 {
-  font-size: 1.8rem;
-  color: var(--text-primary);
-  margin: 0;
+.welcome-content h1 {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  margin-bottom: var(--2);
+  letter-spacing: var(--tracking-tight);
 }
 
-.dashboard-header p {
-  color: var(--text-secondary);
-  margin: 0.5rem 0 0 0;
+.welcome-content p {
+  font-size: var(--text-base);
+  opacity: 0.85;
+  max-width: 500px;
+  line-height: var(--leading-relaxed);
 }
 
-.header-actions {
+.welcome-actions {
   display: flex;
-  gap: 1rem;
+  gap: var(--3);
+  flex-shrink: 0;
 }
 
-.stats-grid {
+.welcome-actions .btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: white;
+}
+
+.welcome-actions .btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.welcome-actions .btn-primary {
+  background: white;
+  border-color: white;
+  color: var(--brand-700);
+}
+
+.welcome-actions .btn-primary:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* ============================================
+   STATS ROW
+   ============================================ */
+
+.stats-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--4);
+  margin-bottom: var(--8);
 }
 
-.stat-card {
-  background-color: var(--card-bg);
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: var(--shadow);
-  text-align: center;
-  border: 1px solid var(--border-color);
-}
-
-.stat-icon {
-  font-size: 2rem;
-  display: block;
-  margin-bottom: 0.5rem;
-}
-
-.stat-card h3 {
-  font-size: 1.5rem;
-  margin: 0.5rem 0;
-  color: var(--text-primary);
-}
-
-.stat-card p {
-  color: var(--text-secondary);
-  margin: 0;
-  font-size: 0.9rem;
-}
-
-.dashboard-content-grid {
-  display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 2rem;
-}
-
-.dashboard-section {
-  margin-bottom: 2.5rem;
-}
-
-.section-header {
+.dash-stat-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  padding: var(--5) var(--6);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  gap: var(--4);
+  transition: box-shadow var(--transition), transform var(--transition);
 }
 
-.dashboard-section h3 {
-  font-size: 1.25rem;
+.dash-stat-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.dash-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-2xl);
+  flex-shrink: 0;
+}
+
+.dash-stat-icon.rating { background: var(--warning-50); }
+.dash-stat-icon.courses { background: var(--brand-100); }
+.dash-stat-icon.completed { background: var(--success-50); }
+.dash-stat-icon.sessions { background: var(--info-50); }
+
+.dash-stat-info h3 {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
   color: var(--text-primary);
-  margin: 0;
+  line-height: 1.2;
 }
 
-.continue-learning-grid {
+.dash-stat-info p {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: var(--1);
+}
+
+/* ============================================
+   DASHBOARD GRID
+   ============================================ */
+
+.dash-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: 1fr 320px;
+  gap: var(--6);
+  align-items: start;
+}
+
+.dash-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--6);
+}
+
+.dash-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--5);
+}
+
+/* ============================================
+   SECTION CARD
+   ============================================ */
+
+.dash-section {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.dash-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--5) var(--6);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.dash-section-header h3 {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.dash-section-body {
+  padding: var(--5) var(--6);
+}
+
+/* ============================================
+   COURSE CARDS (Continue Learning)
+   ============================================ */
+
+.continue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--4);
 }
 
 .learning-card {
-  background-color: var(--card-bg);
-  border-radius: 12px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
   overflow: hidden;
-  box-shadow: var(--shadow);
-  border: 1px solid var(--border-color);
+  transition: box-shadow var(--transition), transform var(--transition);
+}
+
+.learning-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .learning-card img {
   width: 100%;
-  height: 140px;
+  height: 120px;
   object-fit: cover;
+  background: var(--surface-tertiary);
 }
 
-.learning-card-info {
-  padding: 1.25rem;
+.learning-card-body {
+  padding: var(--4);
 }
 
-.learning-card h4 {
-  margin: 0 0 1rem 0;
-  font-size: 1.1rem;
+.learning-card-body h4 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--text-primary);
 }
 
-.progress-container {
+.progress-row {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
+  gap: var(--3);
+  margin-bottom: var(--4);
 }
 
-.progress-bar {
-  flex-grow: 1;
-  height: 8px;
-  background-color: var(--bg-secondary);
-  border-radius: 4px;
+.progress-track {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-tertiary);
+  border-radius: var(--radius-full);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background-color: var(--primary-color);
-  border-radius: 4px;
+  background: var(--brand-500);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-slow);
 }
 
-.progress-container span {
-  font-size: 0.85rem;
+.progress-row span {
+  font-size: var(--text-xs);
   color: var(--text-secondary);
-  min-width: 40px;
+  font-weight: var(--weight-medium);
+  min-width: 32px;
+  text-align: right;
 }
 
-.my-courses-card-highlight {
-  background: linear-gradient(135deg, var(--primary-color) 0%, #1e3a8a 100%);
-  color: white;
-  padding: 1.5rem;
-  border-radius: 16px;
-  margin-bottom: 2rem;
-  cursor: pointer;
-  transition: transform 0.2s;
-  box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4);
-}
+/* ============================================
+   BOOKINGS LIST
+   ============================================ */
 
-.my-courses-card-highlight:hover {
-  transform: translateY(-4px);
-}
-
-.my-courses-card-highlight .card-header {
+.booking-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  justify-content: space-between;
+  padding: var(--3) 0;
+  border-bottom: 1px solid var(--border-light);
 }
 
-.my-courses-card-highlight h3 {
-  margin: 0;
-  font-size: 1.25rem;
-}
-
-.my-courses-card-highlight p {
-  font-size: 0.9rem;
-  opacity: 0.9;
-  margin-bottom: 1.5rem;
-  line-height: 1.5;
-}
-
-.wallet-card-compact {
-  background-color: var(--card-bg);
-  padding: 1.5rem;
-  border-radius: 12px;
-  margin-bottom: 2rem;
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow);
-}
-
-.wallet-card-compact h3 {
-  font-size: 1.1rem;
-  margin: 0 0 1rem 0;
-  color: var(--text-primary);
-}
-
-.wallet-amount {
-  font-size: 2rem;
-  font-weight: 700;
-  margin: 0 0 1.5rem 0;
-  color: var(--primary-color);
-}
-
-.quick-links {
-  background-color: var(--card-bg);
-  padding: 1.5rem;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow);
-}
-
-.quick-links h3 {
-  font-size: 1.1rem;
-  margin: 0 0 1rem 0;
-  color: var(--text-primary);
-}
-
-.quick-links ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.quick-links li {
-  padding: 0.75rem 0;
-  border-bottom: 1px solid var(--border-color);
-  cursor: pointer;
-  color: var(--text-secondary);
-  transition: color 0.2s;
-}
-
-.quick-links li:last-child {
+.booking-item:last-child {
   border-bottom: none;
 }
 
-.quick-links li:hover {
-  color: var(--primary-color);
+.booking-info h4 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--1);
 }
 
-@media (max-width: 992px) {
-  .dashboard-content-grid {
+.booking-info p {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* ============================================
+   SIDEBAR WIDGETS
+   ============================================ */
+
+.sidebar-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  padding: var(--5) var(--6);
+}
+
+.sidebar-card-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--4);
+}
+
+/* Courses Highlight Card */
+.courses-highlight {
+  background: linear-gradient(135deg, var(--brand-800) 0%, var(--brand-600) 100%);
+  border-radius: var(--radius-xl);
+  padding: var(--6);
+  color: white;
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.courses-highlight:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.3);
+}
+
+.courses-highlight-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--3);
+}
+
+.courses-highlight-header h3 {
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+}
+
+.courses-highlight-header .badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.courses-highlight p {
+  font-size: var(--text-sm);
+  opacity: 0.85;
+  margin-bottom: var(--5);
+  line-height: var(--leading-relaxed);
+}
+
+.courses-highlight .btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  width: 100%;
+}
+
+.courses-highlight .btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Wallet */
+.wallet-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  padding: var(--5) var(--6);
+}
+
+.wallet-card h3 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--3);
+}
+
+.wallet-balance {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  color: var(--brand-600);
+  margin-bottom: var(--5);
+}
+
+.wallet-actions {
+  display: flex;
+  gap: var(--2);
+}
+
+/* Quick Links */
+.quick-links-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  padding: var(--5) var(--6);
+}
+
+.quick-links-card h3 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--4);
+}
+
+.quick-link-item {
+  display: flex;
+  align-items: center;
+  gap: var(--3);
+  padding: var(--3) 0;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  transition: color var(--transition-fast);
+}
+
+.quick-link-item:last-child {
+  border-bottom: none;
+}
+
+.quick-link-item:hover {
+  color: var(--brand-600);
+}
+
+/* ============================================
+   SLOT GRID
+   ============================================ */
+
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--3);
+}
+
+.empty-mini {
+  text-align: center;
+  padding: var(--8) var(--4);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 1024px) {
+  .dash-grid {
     grid-template-columns: 1fr;
   }
-  
-  .sidebar-content {
+
+  .dash-sidebar {
     order: -1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--4);
+  }
+
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .welcome-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .welcome-actions {
+    width: 100%;
+  }
+
+  .welcome-actions .btn {
+    flex: 1;
   }
 }
 
-@media (max-width: 640px) {
-  .dashboard-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1.5rem;
+@media (max-width: 768px) {
+  .student-dashboard {
+    padding: var(--4) var(--4);
   }
-  
-  .header-actions {
-    width: 100%;
+
+  .welcome-card {
+    padding: var(--6) var(--5);
   }
-  
-  .header-actions button {
-    flex-grow: 1;
+
+  .welcome-content h1 {
+    font-size: var(--text-2xl);
+  }
+
+  .dash-sidebar {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .continue-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-row {
+    grid-template-columns: 1fr;
+  }
+
+  .welcome-content h1 {
+    font-size: var(--text-xl);
   }
 }

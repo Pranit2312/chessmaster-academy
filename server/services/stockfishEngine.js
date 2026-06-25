@@ -8,12 +8,31 @@ const ENGINE_PATH = path.join(__dirname, '..', 'engines', 'stockfish.exe');
 const ENGINE_THREADS = parseInt(process.env.STOCKFISH_THREADS || '2', 10);
 const ENGINE_HASH = parseInt(process.env.STOCKFISH_HASH || '256', 10);
 const MAX_DEPTH = parseInt(process.env.STOCKFISH_MAX_DEPTH || '30', 10);
-const ANALYSIS_TIMEOUT = parseInt(process.env.STOCKFISH_TIMEOUT || '120000', 10);
+const ANALYSIS_TIMEOUT = parseInt(process.env.STOCKFISH_TIMEOUT || '15000', 10);
 
 let nativeEngine = null;
 let engineLock = Promise.resolve();
 let wasmEngine = null;
 let usingNative = false;
+let shuttingDown = false;
+let pendingOps = 0;
+
+function engineWrite(engine, command) {
+  if (shuttingDown) return false;
+  try {
+    if (engine && !engine.killed && engine.stdin && engine.exitCode === null) {
+      engine.stdin.write(command + '\n');
+      return true;
+    }
+  } catch (err) {
+    if (err.code === 'EPIPE' || err.code === 'ECONNRESET' || err.message.includes('Broken pipe')) {
+      logger.warn('Stockfish write skipped (engine not available)');
+    } else {
+      logger.warn('Stockfish write error:', err.message);
+    }
+  }
+  return false;
+}
 
 function acquireLock() {
   let release;
@@ -24,6 +43,7 @@ function acquireLock() {
 }
 
 async function getEngine() {
+  if (shuttingDown) return null;
   if (nativeEngine) return nativeEngine;
   if (wasmEngine) return wasmEngine;
 
@@ -57,6 +77,17 @@ function initNativeEngine() {
     let buffer = '';
     let resolved = false;
 
+    engine.on('error', (err) => {
+      logger.warn('Stockfish engine error:', err.message);
+      clearTimeout(timeout);
+      if (!resolved) reject(err);
+    });
+
+    engine.stdin.on('error', (err) => {
+      if (err.code === 'EPIPE' || err.code === 'ECONNRESET') return;
+      logger.warn('Stockfish stdin error:', err.message);
+    });
+
     engine.stdout.on('data', (data) => {
       buffer += data.toString();
       const lines = buffer.split('\n');
@@ -72,16 +103,11 @@ function initNativeEngine() {
       }
     });
 
-    engine.on('error', (err) => {
-      clearTimeout(timeout);
-      reject(err);
-    });
-
-    engine.stdin.write('uci\n');
+    engineWrite(engine, 'uci');
     setTimeout(() => {
-      engine.stdin.write('isready\n');
-      engine.stdin.write(`setoption name Threads value ${ENGINE_THREADS}\n`);
-      engine.stdin.write(`setoption name Hash value ${ENGINE_HASH}\n`);
+      engineWrite(engine, 'isready');
+      engineWrite(engine, `setoption name Threads value ${ENGINE_THREADS}`);
+      engineWrite(engine, `setoption name Hash value ${ENGINE_HASH}`);
     }, 500);
   });
 }
@@ -106,7 +132,7 @@ function sendCommand(engine, cmd) {
       };
       engine.stdout.once('data', onData);
       setTimeout(() => { engine.stdout.removeListener('data', onData); resolve(''); }, 100);
-      engine.stdin.write(cmd + '\n');
+      engineWrite(engine, cmd);
     } else {
       const timeout = setTimeout(() => reject(new Error('WASM command timeout')), ANALYSIS_TIMEOUT);
       engine.listener = (line) => {
@@ -121,9 +147,14 @@ function sendCommand(engine, cmd) {
 }
 
 async function analyzeFen(fen, depth = 20, options = {}) {
+  if (shuttingDown) return { evalCp: 0, isMate: false, mateIn: 0, bestMoveUci: null, bestMoveSan: null, pv: [], depth: 0, topMoves: [] };
+
   const release = await acquireLock();
+  pendingOps++;
   try {
     const engine = await getEngine();
+    if (!engine) return { evalCp: 0, isMate: false, mateIn: 0, bestMoveUci: null, bestMoveSan: null, pv: [], depth: 0, topMoves: [] };
+
     const searchDepth = Math.min(Math.max(depth, 4), MAX_DEPTH);
     const multiPv = options.multiPv || 1;
 
@@ -133,22 +164,20 @@ async function analyzeFen(fen, depth = 20, options = {}) {
       return await analyzeWasm(engine, fen, searchDepth);
     }
   } finally {
+    pendingOps--;
     release();
   }
 }
 
 function analyzeNative(engine, fen, depth, multiPv) {
   return new Promise((resolve) => {
+    if (shuttingDown) return resolve({ evalCp: 0, isMate: false, mateIn: 0, bestMoveUci: null, bestMoveSan: null, pv: [], depth: 0, topMoves: [] });
+
     let timeouted = false;
     const timeout = setTimeout(() => {
       timeouted = true;
-      engine.stdout.removeListener('data', onData);
-      engine.stdout.removeListener('data', onBestMove);
-      resolve({
-        evalCp: 0, isMate: false, mateIn: 0,
-        bestMoveUci: null, bestMoveSan: null, pv: [],
-        depth: 0, topMoves: []
-      });
+      try { engine.stdout.removeListener('data', listener); } catch {}
+      resolve({ evalCp: 0, isMate: false, mateIn: 0, bestMoveUci: null, bestMoveSan: null, pv: [], depth: 0, topMoves: [] });
     }, ANALYSIS_TIMEOUT);
 
     let result = {
@@ -157,9 +186,10 @@ function analyzeNative(engine, fen, depth, multiPv) {
       depth: 0, topMoves: []
     };
     let buffer = '';
+    let resolved = false;
 
-    const onData = (data) => {
-      if (timeouted) return;
+    const listener = (data) => {
+      if (timeouted || resolved) return;
       buffer += data.toString();
       const lines = buffer.split('\n');
       buffer = lines.pop();
@@ -194,7 +224,6 @@ function analyzeNative(engine, fen, depth, multiPv) {
           }
 
           if (multiPv > 1) {
-            const selMatch = trimmed.match(/\bseldepth (\d+)/);
             if (pvMatch) {
               const pvMoves = pvMatch[1].trim().split(/\s+/);
               const entry = {
@@ -211,40 +240,34 @@ function analyzeNative(engine, fen, depth, multiPv) {
         }
 
         if (trimmed.startsWith('bestmove')) {
+          clearTimeout(timeout);
+          resolved = true;
+          try { engine.stdout.removeListener('data', listener); } catch {}
           const parts = trimmed.split(/\s+/);
           const move = parts[1] && parts[1] !== '(none)' ? parts[1] : null;
           if (move) result.bestMoveUci = move;
+          result.bestMoveSan = uciToSan(fen, result.bestMoveUci);
+          result.topMoves.sort((a, b) => a.rank - b.rank);
+          resolve(result);
         }
       }
     };
 
-    const onBestMove = (data) => {
-      if (timeouted) return;
-      const trimmed = data.toString().trim();
-      if (trimmed.startsWith('bestmove')) {
-        clearTimeout(timeout);
-        engine.stdout.removeListener('data', onData);
-        engine.stdout.removeListener('data', onBestMove);
-        result.bestMoveSan = uciToSan(fen, result.bestMoveUci);
-        result.topMoves.sort((a, b) => a.rank - b.rank);
-        resolve(result);
-      }
-    };
+    engine.stdout.on('data', listener);
 
-    engine.stdout.on('data', onData);
-    engine.stdout.on('data', onBestMove);
-
-    if (multiPv > 1) engine.stdin.write(`setoption name MultiPV value ${multiPv}\n`);
-    engine.stdin.write(`position fen ${fen}\n`);
-    engine.stdin.write(`go depth ${depth}\n`);
+    if (multiPv > 1) engineWrite(engine, `setoption name MultiPV value ${multiPv}`);
+    engineWrite(engine, `position fen ${fen}`);
+    engineWrite(engine, `go depth ${depth}`);
   });
 }
 
 function analyzeWasm(engine, fen, depth) {
   return new Promise((resolve, reject) => {
+    if (shuttingDown) return resolve({ evalCp: 0, isMate: false, mateIn: 0, bestMoveUci: null, bestMoveSan: null, pv: [], depth: 0, topMoves: [] });
+
     const timeout = setTimeout(() => {
       reject(new Error('WASM analysis timeout'));
-    }, 120000);
+    }, ANALYSIS_TIMEOUT);
 
     let evalCp = 0, isMate = false, mateIn = 0, bestMoveUci = null, pv = [], lastDepth = 0;
 
@@ -287,13 +310,32 @@ function uciToSan(fen, uci) {
 }
 
 function quit() {
-  if (nativeEngine) { try { nativeEngine.stdin.write('quit\n'); nativeEngine.kill(); } catch {} nativeEngine = null; }
-  if (wasmEngine) { try { wasmEngine.sendCommand('quit'); } catch {} wasmEngine = null; }
+  shuttingDown = true;
+  if (nativeEngine) {
+    try {
+      engineWrite(nativeEngine, 'quit');
+      if (!nativeEngine.killed) {
+        setTimeout(() => { try { nativeEngine.kill('SIGKILL'); } catch {} }, 2000);
+        nativeEngine.kill('SIGTERM');
+      }
+    } catch {}
+    nativeEngine = null;
+  }
+  if (wasmEngine) {
+    try { wasmEngine.sendCommand('quit'); } catch {}
+    wasmEngine = null;
+  }
+  logger.info('Stockfish workers stopped');
+}
+
+function getPendingOps() {
+  return pendingOps;
 }
 
 module.exports = {
   analyzeFen,
   analyzeWithMultiPv,
   uciToSan,
-  quit
+  quit,
+  getPendingOps
 };

@@ -8,7 +8,8 @@
     "server": "nodemon server/server.js",
     "client": "npm start --prefix client",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "import-puzzles": "node server/scripts/importLichessPuzzles.js",
+    "import-puzzles": "node server/scripts/importPuzzlesStream.js",
+    "verify-puzzles": "node server/scripts/verifyPuzzleImport.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -27,6 +28,7 @@
     "chess.js": "^1.4.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
+    "csv-parser": "^3.2.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",

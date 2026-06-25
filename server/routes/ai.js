@@ -89,6 +89,9 @@ router.get('/openings/:ecoCode/moves', protect, aiOpeningController.getOpeningMo
 router.get('/openings/search', protect, aiOpeningController.searchOpenings);
 router.get('/openings/user-stats', protect, aiOpeningController.getUserOpeningStats);
 router.post('/openings/seed', protect, aiOpeningController.seedOpenings);
+router.post('/openings/deepen/:id', protect, aiOpeningController.deepenOpening);
+router.post('/openings/deepen-all', protect, aiOpeningController.deepenAllOpenings);
+router.get('/openings/by-fen', protect, aiOpeningController.exploreByFen);
 
 // ======================
 // AI COACH CHAT

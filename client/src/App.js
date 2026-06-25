@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { ToastProvider } from './context/ToastContext';
+import './styles/index.css';
+import './styles/theme.css';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -24,10 +27,23 @@ import CreateCoursePage from './pages/CreateCoursePage';
 import GameAnalysisPage from './pages/GameAnalysisPage';
 import AnalysisResultPage from './pages/AnalysisResultPage';
 
+// Footer Pages
+import AboutPage from './pages/AboutPage';
+import CareersPage from './pages/CareersPage';
+import ContactPage from './pages/ContactPage';
+import HelpPage from './pages/HelpPage';
+import SupportPage from './pages/SupportPage';
+import FAQPage from './pages/FAQPage';
+import CommunityPage from './pages/CommunityPage';
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
+
 // Puzzle Platform Pages (Phase 2)
 import PuzzlesPage from './pages/PuzzlesPage';
 import PuzzleRushPage from './pages/PuzzleRushPage';
 import CoachPuzzleCreator from './pages/CoachPuzzleCreator';
+
+import Footer from './components/Footer';
 
 // AI Pages (Phase 2)
 import AiPracticePage from './pages/AiPracticePage';
@@ -40,6 +56,7 @@ import AiInsightsPage from './pages/AiInsightsPage';
 import AdminDashboard from './pages/AdminDashboard';
 import TournamentsPage from './pages/TournamentsPage';
 import TournamentDetailPage from './pages/TournamentDetailPage';
+import LiveTournamentPage from './pages/LiveTournamentPage';
 import ForumPage from './pages/ForumPage';
 import ForumDetailPage from './pages/ForumDetailPage';
 import StudentAnalytics from './pages/StudentAnalytics';
@@ -96,23 +113,16 @@ const PublicRoute = ({ children }) => {
 };
 
 function AppContent() {
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [theme] = useState(localStorage.getItem('theme') || 'dark');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
-
   return (
     <div className="App">
       <Navbar />
-      <div className="theme-toggle" onClick={toggleTheme}>
-        {theme === 'light' ? '🌙' : '☀️'}
-      </div>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
@@ -367,6 +377,14 @@ function AppContent() {
           }
         />
         <Route
+          path="/tournaments/:id/live"
+          element={
+            <ProtectedRoute>
+              <LiveTournamentPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/tournaments/:id"
           element={
             <ProtectedRoute>
@@ -453,9 +471,21 @@ function AppContent() {
           }
         />
 
+        {/* Footer Pages (Public) */}
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/careers" element={<CareersPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/help" element={<HelpPage />} />
+        <Route path="/support" element={<SupportPage />} />
+        <Route path="/faq" element={<FAQPage />} />
+        <Route path="/community" element={<CommunityPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+      <Footer />
     </div>
   );
 }
@@ -464,9 +494,11 @@ function App() {
   return (
     <AuthProvider>
       <SocketProvider>
-        <Router>
-          <AppContent />
-        </Router>
+        <ToastProvider>
+          <Router>
+            <AppContent />
+          </Router>
+        </ToastProvider>
       </SocketProvider>
     </AuthProvider>
   );

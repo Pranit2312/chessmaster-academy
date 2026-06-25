@@ -1,15 +1,16 @@
-const https = require('https');
-const readline = require('readline');
-const mongoose = require('mongoose');
+const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
+const csv = require('csv-parser');
 const { Chess } = require('chess.js');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const Puzzle = require('../models/Puzzle');
 
-const CSV_URL = 'https://database.lichess.org/lichess_db_puzzle.csv';
-const TARGET = Math.min(parseInt(process.argv[2]) || 100000, 1000000);
-const BATCH_SIZE = 500;
+const CSV_PATH = path.join(__dirname, '..', 'data', 'lichess_puzzle_transformed.csv');
+const PROGRESS_FILE = path.join(__dirname, '..', 'data', '.import-progress');
+const BATCH_SIZE = 5000;
+const MAX_RECORDS = parseInt(process.argv[2]) || Infinity;
 
 function parseThemes(str) {
   if (!str || !str.trim()) return [];
@@ -24,130 +25,200 @@ function parseMoves(str) {
 function uciToSan(fen, uciMoves) {
   try {
     const chess = new Chess(fen);
-    return uciMoves.map(m => {
-      if (m.length < 4) return m;
+    const result = [];
+    for (const m of uciMoves) {
+      if (m.length < 4) return null;
       try {
         const mv = chess.move({ from: m.slice(0, 2), to: m.slice(2, 4), promotion: m[4] || undefined });
-        return mv.san;
-      } catch { return m; }
-    });
-  } catch { return uciMoves; }
+        result.push(mv.san);
+      } catch {
+        return null;
+      }
+    }
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+function getLastImportedId() {
+  try {
+    if (fs.existsSync(PROGRESS_FILE)) {
+      return fs.readFileSync(PROGRESS_FILE, 'utf-8').trim();
+    }
+  } catch {}
+  return null;
+}
+
+function saveProgress(puzzleId) {
+  try {
+    fs.writeFileSync(PROGRESS_FILE, puzzleId, 'utf-8');
+  } catch {}
+}
+
+function clearProgress() {
+  try {
+    if (fs.existsSync(PROGRESS_FILE)) fs.unlinkSync(PROGRESS_FILE);
+  } catch {}
 }
 
 async function main() {
-  await mongoose.connect(process.env.MONGODB_URI);
-  console.log(`Stream-importing up to ${TARGET.toLocaleString()} puzzles from Lichess CSV...`);
-  console.log(`URL: ${CSV_URL}`);
-  console.log('');
-
-  const existing = await Puzzle.countDocuments({});
-  if (existing >= TARGET) {
-    console.log(`Already have ${existing} puzzles. Skipping download.`);
-    process.exit(0);
+  if (!fs.existsSync(CSV_PATH)) {
+    console.error(`CSV not found: ${CSV_PATH}`);
+    console.error('Expected at: server/data/lichess_puzzle_transformed.csv');
+    process.exit(1);
   }
 
-  return new Promise((resolve, reject) => {
-    const req = https.get(CSV_URL, { timeout: 60000 }, (res) => {
-      if (res.statusCode !== 200) {
-        console.error(`Download failed: HTTP ${res.statusCode}`);
-        reject(new Error(`HTTP ${res.statusCode}`));
+  await mongoose.connect(process.env.MONGODB_URI);
+  console.log(`Connected to MongoDB: ${mongoose.connection.db.databaseName}`);
+
+  const resumeId = getLastImportedId();
+  let resumeMode = false;
+  if (resumeId) {
+    console.log(`Resume mode: skipping rows before puzzleId "${resumeId}"`);
+    resumeMode = true;
+  }
+
+  const fileSize = fs.statSync(CSV_PATH).size;
+  console.log(`File: ${CSV_PATH} (${(fileSize / 1024 / 1024).toFixed(1)} MB)`);
+  console.log(`Batch size: ${BATCH_SIZE.toLocaleString()}`);
+  console.log(`Max records: ${MAX_RECORDS === Infinity ? 'unlimited' : MAX_RECORDS.toLocaleString()}`);
+  console.log('');
+
+  let total = 0;
+  let skipped = 0;
+  let errors = 0;
+  let insertedCount = 0;
+  let batch = [];
+  let startTime = Date.now();
+  let foundResume = !resumeId;
+
+  await new Promise((resolve, reject) => {
+    const readStream = fs.createReadStream(CSV_PATH, { highWaterMark: 64 * 1024 })
+      .pipe(csv({
+        mapHeaders: ({ header }) => header.trim(),
+        skipLines: 0
+      }));
+
+    readStream.on('data', async (row) => {
+      if (total >= MAX_RECORDS) {
+        readStream.destroy();
         return;
       }
 
-      const totalSize = parseInt(res.headers['content-length'] || '0');
-      let downloadedBytes = 0;
-      let total = 0;
-      let skipped = 0;
-      let errors = 0;
-      let batch = [];
-      let headerSkipped = false;
-      let startTime = Date.now();
-
-      res.on('data', (chunk) => {
-        downloadedBytes += chunk.length;
-      });
-
-      const rl = readline.createInterface({ input: res, crlfDelay: Infinity });
-
-      rl.on('line', async (line) => {
-        if (!headerSkipped) { headerSkipped = true; return; }
-        if (total >= TARGET) return;
-
-        const parts = line.split(',');
-        if (parts.length < 8) { skipped++; return; }
-
-        try {
-          const puzzleId = parts[0].trim();
-          if (!puzzleId) { skipped++; return; }
-
-          const fen = parts[1].trim();
-          const movesStr = parts[2].trim();
-          const rating = parseInt(parts[3]) || 1500;
-          const popularity = parseInt(parts[5]) || 0;
-          const nbPlays = parseInt(parts[6]) || 0;
-          const themes = parseThemes(parts[7]);
-          const openingTags = parseThemes(parts[9]);
-
-          const rawMoves = parseMoves(movesStr);
-          if (rawMoves.length === 0) { skipped++; return; }
-
-          const solution = uciToSan(fen, rawMoves);
-
-          batch.push({
-            puzzleId,
-            fen,
-            solution,
-            rating: Math.max(200, Math.min(3500, rating)),
-            popularity,
-            nbPlays,
-            themes,
-            openingTags: [],
-            source: 'lichess',
-            playerSide: fen.split(' ')[1] === 'w' ? 'w' : 'b',
-            isActive: true,
-            solvedCount: 0,
-            avgSolveTime: 0
-          });
-
-          total++;
-
-          if (batch.length >= BATCH_SIZE) {
-            rl.pause();
-            const b = batch;
-            batch = [];
-            await flushBatch(b).catch(() => {});
-            rl.resume();
-            report(total, skipped, errors, startTime, totalSize, downloadedBytes);
-          }
-        } catch {
-          errors++;
+      if (!foundResume) {
+        if (row.PuzzleId === resumeId) {
+          foundResume = true;
         }
-      });
+        return;
+      }
 
-      rl.on('close', async () => {
-        if (batch.length > 0) {
-          await flushBatch(batch).catch(() => {});
+      readStream.pause();
+
+      try {
+        const puzzleId = (row.PuzzleId || '').trim();
+        if (!puzzleId) { skipped++; readStream.resume(); return; }
+
+        const fen = (row.FEN || '').trim();
+        if (!fen) { skipped++; readStream.resume(); return; }
+
+        const movesStr = (row.Moves || '').trim();
+        const rawMoves = parseMoves(movesStr);
+        if (rawMoves.length === 0) { skipped++; readStream.resume(); return; }
+
+        const rating = Math.max(200, Math.min(3500, parseInt(row.Rating) || 1500));
+        const ratingDeviation = Math.max(0, parseInt(row.RatingDeviation) || 0);
+        const popularity = Math.max(0, parseInt(row.Popularity) || 0);
+        const nbPlays = parseInt(row.NbPlays) || 0;
+        const themes = parseThemes(row.Themes);
+        const gameUrl = (row.GameUrl || '').trim();
+
+        const solution = uciToSan(fen, rawMoves);
+        if (!solution) { skipped++; readStream.resume(); return; }
+
+        batch.push({
+          puzzleId,
+          fen,
+          solution,
+          rating,
+          ratingDeviation,
+          popularity,
+          nbPlays,
+          themes,
+          openingTags: [],
+          gameUrl,
+          playerSide: fen.split(' ')[1] === 'w' ? 'w' : 'b',
+          isActive: true,
+          solvedCount: 0,
+          avgSolveTime: 0
+        });
+
+        total++;
+
+        if (batch.length >= BATCH_SIZE) {
+          const b = batch;
+          batch = [];
+          const result = await flushBatch(b);
+          insertedCount += result.upserted;
+          saveProgress(puzzleId);
+          reportProgress(total, skipped, errors, insertedCount, startTime, fileSize);
         }
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log('\n');
-        console.log('='.repeat(50));
-        console.log('STREAM IMPORT COMPLETE');
-        console.log('='.repeat(50));
-        console.log(`  Imported:    ${total.toLocaleString()}`);
-        console.log(`  Skipped:     ${skipped}`);
-        console.log(`  Errors:      ${errors}`);
-        console.log(`  Time:        ${elapsed}s`);
-        const finalCount = await Puzzle.countDocuments({});
-        console.log(`  Total in DB: ${finalCount.toLocaleString()}`);
-        mongoose.connection.close();
-        resolve();
-      });
+      } catch (err) {
+        errors++;
+      }
 
-      rl.on('error', (err) => { reject(err); });
+      readStream.resume();
     });
 
-    req.on('error', reject);
+    readStream.on('end', async () => {
+      if (batch.length > 0) {
+        const result = await flushBatch(batch);
+        insertedCount += result.upserted;
+        batch = [];
+      }
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log('\n');
+      console.log('='.repeat(50));
+      console.log('STREAM IMPORT COMPLETE');
+      console.log('='.repeat(50));
+      console.log(`  Total processed: ${total.toLocaleString()}`);
+      console.log(`  New inserted:    ${insertedCount.toLocaleString()}`);
+      console.log(`  Skipped (invalid): ${skipped.toLocaleString()}`);
+      console.log(`  Errors:          ${errors}`);
+      console.log(`  Time:            ${elapsed}s`);
+      console.log(`  Speed:           ${(total / elapsed).toFixed(0)} rows/s`);
+      resolve();
+    });
+
+    readStream.on('error', (err) => {
+      if (err.message.includes('destroy')) {
+        console.log('\n  Hit max records, finalizing...');
+      } else {
+        reject(err);
+      }
+    });
   });
+
+  if (total > 0) clearProgress();
+  const finalCount = await Puzzle.countDocuments({});
+  console.log(`  Total in DB: ${finalCount.toLocaleString()}`);
+
+  const stats = await Puzzle.aggregate([
+    { $group: { _id: null, minRating: { $min: '$rating' }, maxRating: { $max: '$rating' }, avgRating: { $avg: '$rating' }, totalPlays: { $sum: '$nbPlays' } } }
+  ]);
+  if (stats[0]) {
+    console.log(`  Rating:      ${stats[0].minRating} - ${stats[0].maxRating} (avg ${Math.round(stats[0].avgRating)})`);
+  }
+
+  const themeCount = await Puzzle.distinct('themes');
+  console.log(`  Themes:      ${themeCount.length.toLocaleString()} unique`);
+
+  const collStats = await mongoose.connection.db.command({ collStats: 'puzzles' });
+  console.log(`  DB size:     ${(collStats.size / 1024 / 1024).toFixed(1)} MB`);
+  console.log(`  Index size:  ${(collStats.totalIndexSize / 1024 / 1024).toFixed(1)} MB`);
+
+  await mongoose.connection.close();
+  console.log('Done.');
 }
 
 async function flushBatch(batch) {
@@ -158,17 +229,22 @@ async function flushBatch(batch) {
       upsert: true
     }
   }));
-  await Puzzle.bulkWrite(ops, { ordered: false });
+  try {
+    const result = await Puzzle.bulkWrite(ops, { ordered: false });
+    return { upserted: result.upsertedCount || 0, matched: result.matchedCount || 0 };
+  } catch (err) {
+    console.error(`\nBatch insert error: ${err.message}`);
+    return { upserted: 0, matched: 0 };
+  }
 }
 
-function report(total, skipped, errors, startTime, totalSize, downloadedBytes) {
+function reportProgress(total, skipped, errors, insertedCount, startTime, fileSize) {
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   const rate = total > 0 ? (total / elapsed).toFixed(0) : '?';
-  const pct = totalSize > 0 ? ((downloadedBytes / totalSize) * 100).toFixed(1) : '?';
-  process.stdout.write(`\r  Imported: ${total.toLocaleString()} | Skipped: ${skipped} | Errors: ${errors} | Rate: ${rate}/s | Downloaded: ${pct}%   `);
+  process.stdout.write(`\r  Processed: ${total.toLocaleString()} | Inserted: ${insertedCount.toLocaleString()} | Skipped: ${skipped.toLocaleString()} | Rate: ${rate}/s`);
 }
 
 main().catch(err => {
-  console.error('FATAL:', err.message);
+  console.error('FATAL:', err);
   process.exit(1);
 });

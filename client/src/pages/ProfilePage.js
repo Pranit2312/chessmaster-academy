@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { userAPI } from "../utils/api";
+import { userAPI, tournamentAPI } from "../utils/api";
 import Modal from "../components/Modal";
 import LoadingSpinner from "../components/LoadingSpinner";
 import "../styles/ProfilePage.css";
@@ -12,6 +12,7 @@ const ProfilePage = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [tournamentStats, setTournamentStats] = useState(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -55,6 +56,12 @@ const ProfilePage = () => {
       });
     }
     setLoading(false);
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      tournamentAPI.getProfileStats().then(r => setTournamentStats(r.data.stats)).catch(() => {});
+    }
   }, [user]);
 
   const handleChange = (e) => {
@@ -362,6 +369,38 @@ const ProfilePage = () => {
               <p className="goals-text">
                 {formData.learningGoals || "No learning goals provided"}
               </p>
+            </section>
+          )}
+
+          {tournamentStats && (
+            <section className="detail-section">
+              <h3>Tournament Stats</h3>
+              <div className="detail-grid">
+                <div className="detail-item">
+                  <span className="label">Tournaments Joined</span>
+                  <span className="value">{tournamentStats.joined}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Tournaments Created</span>
+                  <span className="value">{tournamentStats.created}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Win Rate</span>
+                  <span className="value">
+                    {tournamentStats.joined > 0
+                      ? `${((tournamentStats.won / Math.max(tournamentStats.joined, 1)) * 100).toFixed(0)}%`
+                      : '—'}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Best Finish</span>
+                  <span className="value">{tournamentStats.bestFinish || '—'}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Tournament Games</span>
+                  <span className="value">{tournamentStats.totalGames}</span>
+                </div>
+              </div>
             </section>
           )}
         </div>

@@ -1,73 +1,155 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Chess } from 'chess.js';
 import { puzzleAPI } from '../utils/api';
 import PuzzleBoard from '../components/puzzles/PuzzleBoard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/PuzzlesPage.css';
 
-const TABS = ['daily', 'browse', 'stats'];
-const THEMES = ['all', 'fork', 'pin', 'skewer', 'checkmate', 'sacrifice', 'discoveredAttack', 'deflection', 'endgame'];
+const DEBUG = true;
+const TABS = ['daily', 'themes', 'stats'];
+
+function log(...args) {
+  if (DEBUG) console.log('[PuzzlePage]', ...args);
+}
+
+function getSideFromFen(fen) {
+  if (!fen) return 'w';
+  return fen.split(' ')[1] || 'w';
+}
+
+function validatePuzzleOnClient(puzzle) {
+  if (!puzzle || !puzzle.fen || !puzzle.solution || puzzle.solution.length === 0) return false;
+  try {
+    const chess = new Chess(puzzle.fen);
+    const sideToMove = chess.turn();
+    const firstMove = puzzle.solution[0];
+    const chess2 = new Chess(puzzle.fen);
+    const move = chess2.move(firstMove, { sloppy: true });
+    if (!move) return false;
+    if (move.color !== sideToMove) return false;
+    for (let i = 1; i < puzzle.solution.length; i++) {
+      try {
+        const m = chess2.move(puzzle.solution[i], { sloppy: true });
+        if (!m) return false;
+      } catch {
+        try {
+          const raw = puzzle.solution[i];
+          if (raw.length >= 4) {
+            const from = raw.slice(0, 2);
+            const to = raw.slice(2, 4);
+            const prom = raw.length > 4 ? raw[4] : undefined;
+            chess2.move({ from, to, promotion: prom || 'q' });
+          } else {
+            return false;
+          }
+        } catch {
+          return false;
+        }
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const PuzzlesPage = () => {
   const [tab, setTab] = useState('daily');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Puzzle state
   const [currentPuzzle, setCurrentPuzzle] = useState(null);
   const [puzzleSource, setPuzzleSource] = useState(null);
   const [result, setResult] = useState(null);
   const [solved, setSolved] = useState(false);
   const [showSolution, setShowSolution] = useState(false);
-  const [hint, setHint] = useState(null);
+  const [hintLevel, setHintLevel] = useState(0);
+  const [hintData, setHintData] = useState(null);
   const [profile, setProfile] = useState(null);
   const [globalStats, setGlobalStats] = useState(null);
+  const [newPuzzleTrigger, setNewPuzzleTrigger] = useState(0);
 
-  // Browse state
-  const [puzzles, setPuzzles] = useState([]);
-  const [browseTheme, setBrowseTheme] = useState('all');
-  const [browsePage, setBrowsePage] = useState(1);
-  const [browseTotal, setBrowseTotal] = useState(0);
+  const [themeList, setThemeList] = useState([]);
+  const [selectedTheme, setSelectedTheme] = useState(null);
+  const [themePuzzles, setThemePuzzles] = useState([]);
+  const [themeTotal, setThemeTotal] = useState(0);
+  const [themePage, setThemePage] = useState(1);
+
+  const loadingDailyRef = useRef(false);
+  const fetchingRef = useRef({ themes: false, stats: false, themePuzzles: {} });
+  const forfeitingRef = useRef(false);
+  const hintLevelRef = useRef(0);
+
+  useEffect(() => {
+    puzzleAPI.getProfile()
+      .then(res => setProfile(res.data.profile))
+      .catch(() => {});
+  }, []);
 
   const loadDaily = useCallback(async () => {
+    if (loadingDailyRef.current) return;
+    loadingDailyRef.current = true;
     setLoading(true);
     setError(null);
     try {
       const res = await puzzleAPI.getDaily();
-      setCurrentPuzzle(res.data.puzzle);
+      const p = res.data.puzzle;
+      if (!p || !validatePuzzleOnClient(p)) {
+        log('loadDaily: puzzle rejected by validatePuzzleOnClient');
+        setLoading(false);
+        loadingDailyRef.current = false;
+        return;
+      }
+      const side = getSideFromFen(p.fen);
+      log(`Loaded daily puzzle ${p.puzzleId}: FEN turn=${side}, solution[0]=${p.solution?.[0]}, solution length=${p.solution?.length}`);
+      setCurrentPuzzle(p);
       setPuzzleSource('daily');
-      setSolved(res.data.dailySolved);
+      setSolved(res.data.dailySolved || false);
       setResult(null);
       setShowSolution(false);
-      setHint(null);
+      hintLevelRef.current = 0;
+      setHintLevel(0);
+      setHintData(null);
+      setError(null);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load daily puzzle');
+      log('loadDaily error:', err?.message);
+      setError(err?.response?.data?.message || err?.message || 'Failed to load daily puzzle');
     }
     setLoading(false);
+    loadingDailyRef.current = false;
   }, []);
 
-  const loadBrowse = useCallback(async () => {
+  const loadThemes = useCallback(async () => {
+    if (fetchingRef.current.themes) return;
+    fetchingRef.current.themes = true;
+    try {
+      const res = await puzzleAPI.getThemes();
+      setThemeList(res.data.themes || []);
+    } catch {
+      setThemeList([]);
+    }
+    fetchingRef.current.themes = false;
+  }, []);
+
+  const loadThemePuzzles = useCallback(async (theme, page) => {
+    const key = `${theme}-${page}`;
+    if (fetchingRef.current.themePuzzles[key]) return;
+    fetchingRef.current.themePuzzles[key] = true;
     setLoading(true);
     setError(null);
     try {
-      const params = { page: browsePage, limit: 12 };
-      if (browseTheme !== 'all') params.theme = browseTheme;
-      const res = await puzzleAPI.getByTheme(browseTheme === 'all' ? 'tactic' : browseTheme, params);
-      setPuzzles(res.data.puzzles || []);
-      setBrowseTotal(res.data.total || 0);
-    } catch (err) {
-      setPuzzles([]);
+      const res = await puzzleAPI.getByTheme(theme, { page, limit: 12 });
+      setThemePuzzles(res.data.puzzles || []);
+      setThemeTotal(res.data.total || 0);
+    } catch {
+      setThemePuzzles([]);
     }
     setLoading(false);
-  }, [browseTheme, browsePage]);
-
-  const loadProfile = useCallback(async () => {
-    try {
-      const res = await puzzleAPI.getProfile();
-      setProfile(res.data.profile);
-    } catch {}
   }, []);
 
   const loadStats = useCallback(async () => {
+    if (fetchingRef.current.stats) return;
+    fetchingRef.current.stats = true;
     setLoading(true);
     try {
       const res = await puzzleAPI.getStats();
@@ -75,87 +157,223 @@ const PuzzlesPage = () => {
       setProfile(res.data.user);
     } catch {}
     setLoading(false);
+    fetchingRef.current.stats = false;
   }, []);
 
+  const initialLoadRef = useRef({ daily: false });
   useEffect(() => {
-    if (tab === 'daily') loadDaily();
-    else if (tab === 'browse') loadBrowse();
-    else if (tab === 'stats') loadStats();
-    loadProfile();
-  }, [tab, loadDaily, loadBrowse, loadStats, loadProfile]);
+    if (tab === 'daily') {
+      if (!initialLoadRef.current.daily) {
+        initialLoadRef.current.daily = true;
+        loadDaily();
+      }
+    } else if (tab === 'themes') {
+      loadThemes();
+    } else if (tab === 'stats') {
+      loadStats();
+    }
+  }, [tab, loadDaily, loadStats, loadThemes]);
 
   useEffect(() => {
-    if (tab === 'browse') loadBrowse();
-  }, [tab, browseTheme, browsePage, loadBrowse]);
+    if (selectedTheme && tab === 'themes') loadThemePuzzles(selectedTheme, themePage);
+  }, [selectedTheme, themePage, loadThemePuzzles, tab]);
 
-  const handleSolve = useCallback(async (move) => {
+  useEffect(() => {
+    setResult(null);
+    hintLevelRef.current = 0;
+    setHintLevel(0);
+    setHintData(null);
+    setNewPuzzleTrigger(n => n + 1);
+  }, [currentPuzzle]);
+
+  const handleUserMove = useCallback((_move) => {
+  }, []);
+
+  const handlePuzzleComplete = useCallback(async (lastMove) => {
     if (!currentPuzzle || solved) return;
-
+    setError(null);
+    const puzzleId = currentPuzzle.puzzleId || currentPuzzle._id;
+    log(`Puzzle complete: ${puzzleId}, lastMove=${lastMove}`);
     try {
-      const puzzleId = currentPuzzle.puzzleId || currentPuzzle._id;
-      const res = await puzzleAPI.check({ puzzleId, move, timeMs: 0 });
-
-      setResult(res.data);
-
-      if (res.data.correct) {
+      const res = await puzzleAPI.check({ puzzleId, move: lastMove, timeMs: 0, completed: true });
+      const data = res.data;
+      log(`Check result: correct=${data.correct}, ratingUpdate=${JSON.stringify(data.ratingUpdate)}`);
+      setResult(data);
+      if (data.correct) {
         setSolved(true);
         if (puzzleSource === 'daily') {
           puzzleAPI.markDailySolved().catch(() => {});
         }
-        loadProfile();
       }
+      puzzleAPI.getProfile()
+        .then(r => setProfile(r.data.profile))
+        .catch(() => {});
     } catch (err) {
-      setError('Failed to check solution');
+      log('check error:', err?.message);
+      setError(err?.response?.data?.message || err?.message || 'Failed to validate move');
     }
-  }, [currentPuzzle, solved, puzzleSource, loadProfile]);
+  }, [currentPuzzle, solved, puzzleSource]);
+
+  const handleForfeit = useCallback(async () => {
+    if (!currentPuzzle || solved || forfeitingRef.current || !window.confirm('Show solution? This will count as an incorrect attempt.')) return;
+    forfeitingRef.current = true;
+    setError(null);
+    const puzzleId = currentPuzzle.puzzleId || currentPuzzle._id;
+    log(`Show solution / forfeit: ${puzzleId}`);
+    try {
+      const res = await puzzleAPI.check({ puzzleId, forfeit: true, timeMs: 0 });
+      setResult(res.data);
+      setShowSolution(true);
+      setSolved(true);
+      puzzleAPI.getProfile()
+        .then(r => setProfile(r.data.profile))
+        .catch(() => {});
+    } catch (err) {
+      log('forfeit error:', err?.message);
+      setError(err?.response?.data?.message || err?.message || 'Failed to submit solution');
+    }
+    forfeitingRef.current = false;
+  }, [currentPuzzle, solved]);
 
   const getHint = useCallback(async () => {
     if (!currentPuzzle) return;
+    const nextLevel = (hintLevelRef.current + 1) % 4;
+    hintLevelRef.current = nextLevel;
+    setHintLevel(nextLevel);
+    if (nextLevel === 0) {
+      setHintData(null);
+      return;
+    }
     try {
       const puzzleId = currentPuzzle.puzzleId || currentPuzzle._id;
       const res = await puzzleAPI.getHint(puzzleId);
-      setHint(res.data.hint?.move || 'Look for a tactical opportunity');
+      const h = res.data.hint || {};
+      const firstMove = h.solution?.[0] || h.move || '';
+      const chess = new Chess(currentPuzzle.fen);
+      let san, from, to;
+      try {
+        const m = chess.move(firstMove, { sloppy: true });
+        san = m.san;
+        from = m.from;
+        to = m.to;
+      } catch {
+        try {
+          const raw = firstMove;
+          if (raw.length >= 4) {
+            from = raw.slice(0, 2);
+            to = raw.slice(2, 4);
+            const prom = raw.length > 4 ? raw[4] : undefined;
+            const m = chess.move({ from, to, promotion: prom || 'q' });
+            san = m.san;
+          }
+        } catch {}
+      }
+      log(`Hint level ${nextLevel}: from=${from} to=${to} san=${san}`);
+      setHintData({ level: nextLevel, san, from, to, text: h.text || '' });
     } catch {
-      setHint('Analyze the position carefully');
+      log('getHint error');
+      setError('Unable to load hint. Please try again.');
+      setHintData({ level: nextLevel, san: '', from: '', to: '', text: 'Analyze the position' });
     }
   }, [currentPuzzle]);
 
   const loadRandom = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await puzzleAPI.getRandom();
-      setCurrentPuzzle(res.data.puzzle);
-      setPuzzleSource('random');
-      setSolved(false);
-      setResult(null);
-      setShowSolution(false);
-      setHint(null);
-      setTab('daily');
-    } catch { setError('Failed to load puzzle'); }
+      for (let i = 0; i < 3; i++) {
+        const res = await puzzleAPI.getRandom();
+        const p = res.data.puzzle;
+        if (p && validatePuzzleOnClient(p)) {
+          const side = getSideFromFen(p.fen);
+          log(`Loaded random puzzle ${p.puzzleId}: FEN turn=${side}, solution[0]=${p.solution?.[0]}, length=${p.solution?.length}`);
+          setCurrentPuzzle(p);
+          setPuzzleSource('random');
+          setSolved(false);
+          setResult(null);
+          setShowSolution(false);
+          hintLevelRef.current = 0;
+          setHintLevel(0);
+          setHintData(null);
+          setError(null);
+          setLoading(false);
+          return;
+        }
+      }
+      setError('No valid puzzles found. Try again.');
+    } catch (err) {
+      log('loadRandom error:', err?.message);
+      setError(err?.response?.data?.message || err?.message || 'Failed to load puzzle');
+    }
     setLoading(false);
   }, []);
 
-  const nextPuzzle = useCallback(() => {
-    if (puzzles.length > 0) {
-      const idx = (puzzles || []).findIndex(p => p._id === currentPuzzle?._id);
-      if (idx < puzzles.length - 1) {
-        setCurrentPuzzle(puzzles[idx + 1]);
-        setPuzzleSource('browse');
-      } else {
-        loadRandom();
-      }
-    } else {
-      loadRandom();
-    }
+  const nextPuzzle = useCallback(async () => {
     setSolved(false);
     setResult(null);
     setShowSolution(false);
-    setHint(null);
-  }, [puzzles, currentPuzzle, loadRandom]);
+    hintLevelRef.current = 0;
+    setHintLevel(0);
+    setHintData(null);
+    if (themePuzzles.length > 0) {
+      const idx = (themePuzzles || []).findIndex(p => p._id === currentPuzzle?._id);
+      if (idx >= 0 && idx < themePuzzles.length - 1) {
+        const next = themePuzzles[idx + 1];
+        if (validatePuzzleOnClient(next)) {
+          setCurrentPuzzle(next);
+          setPuzzleSource('themes');
+          return;
+        }
+      }
+    }
+    await loadRandom();
+  }, [themePuzzles, currentPuzzle, loadRandom]);
 
+  const formatSolution = (fenStr, moves) => {
+    if (!moves || moves.length === 0) return '';
+    try {
+      const c = new Chess(fenStr);
+      const lines = [];
+      let pairNum = 1;
+      let whiteMove = '';
+      for (let i = 0; i < moves.length; i++) {
+        let m;
+        try {
+          m = c.move(moves[i], { sloppy: true });
+        } catch {
+          try {
+            const raw = moves[i];
+            if (raw.length >= 4) {
+              const from = raw.slice(0, 2);
+              const to = raw.slice(2, 4);
+              const prom = raw.length > 4 ? raw[4] : undefined;
+              m = c.move({ from, to, promotion: prom || 'q' });
+            }
+          } catch {}
+        }
+        if (!m) {
+          if (i % 2 === 0) lines.push(`${pairNum}. ${moves[i]}`);
+          else lines[lines.length - 1] += ` ${moves[i]}`;
+          continue;
+        }
+        if (c.turn() === 'b') {
+          whiteMove = m.san;
+        } else {
+          lines.push(`${pairNum}.${whiteMove ? ' ' + whiteMove : ''}${whiteMove ? ' ' : ' ... '}${m.san}`);
+          pairNum++;
+          whiteMove = '';
+        }
+      }
+      if (whiteMove) lines.push(`${pairNum}. ${whiteMove}`);
+      return lines.join('  ');
+    } catch {
+      return moves.join(' ');
+    }
+  };
 
-
-  if (loading && tab !== 'browse') return <LoadingSpinner />;
+  if (loading && tab !== 'themes') {
+    if (!currentPuzzle) return <LoadingSpinner />;
+  }
 
   return (
     <div className="puzzles-page">
@@ -177,89 +395,124 @@ const PuzzlesPage = () => {
       {tab === 'daily' && currentPuzzle && (
         <div className="puzzle-solve-view">
           <div className="puzzle-main">
-            <PuzzleBoard fen={currentPuzzle.fen} playerSide={currentPuzzle.playerSide}
-              onMove={handleSolve} boardWidth={400}
-              showSolution={showSolution} solution={currentPuzzle.solution} />
+            <PuzzleBoard
+              key={currentPuzzle._id || currentPuzzle.puzzleId}
+              puzzle={currentPuzzle}
+              fen={currentPuzzle.fen}
+              solution={currentPuzzle.solution}
+              onMove={handleUserMove}
+              onComplete={handlePuzzleComplete}
+              boardWidth={480}
+              showSolution={showSolution}
+              newPuzzleTrigger={newPuzzleTrigger}
+              hintData={hintData}
+            />
           </div>
           <div className="puzzle-sidebar">
             <div className="puzzle-meta">
-              <h3>Daily Puzzle</h3>
-              <div className="puzzle-badges">
-                <span className={`badge difficulty-${currentPuzzle.difficulty || 'medium'}`}>
-                  {currentPuzzle.rating || '?'}
-                </span>
-                <span className="badge badge-info">
-                  {currentPuzzle.themes?.slice(0, 3).join(', ') || 'Tactic'}
-                </span>
+              <div className="puzzle-rating-badge">
+                <span className="prb-label">Puzzle</span>
+                <span className="prb-value">{currentPuzzle.rating || '?'}</span>
               </div>
-              {currentPuzzle.openingFamily && (
-                <p className="puzzle-opening">{currentPuzzle.openingFamily}</p>
+              <div className="puzzle-user-rating-badge">
+                <span className="prb-label">Your rating</span>
+                <span className="prb-value">{profile?.puzzleRating || 1200}</span>
+              </div>
+              <div className="puzzle-theme-tags">
+                {(currentPuzzle.themes || []).slice(0, 3).map(t => (
+                  <span key={t} className="theme-tag">{t}</span>
+                ))}
+              </div>
+              {solved && (
+                <span className="puzzle-side-badge solved">Solved</span>
               )}
             </div>
 
             {!solved && !showSolution && (
               <div className="puzzle-actions">
                 <button className="btn btn-sm btn-outline" onClick={getHint}>
-                  {hint ? hint : 'Hint'}
+                  {hintLevel === 0 ? 'Hint' : hintLevel === 3 && hintData?.san ? `Hint: ${hintData.san}` : `Hint (${hintLevel}/3)`}
                 </button>
-                <button className="btn btn-sm btn-outline" onClick={() => setShowSolution(true)}>
+                <button className="btn btn-sm btn-outline" onClick={handleForfeit}>
                   Show Solution
                 </button>
               </div>
             )}
 
-            {showSolution && (
-              <div className="solution-display">
-                <h4>Solution</h4>
-                <p>{currentPuzzle.solution?.join(' ') || 'N/A'}</p>
-              </div>
-            )}
-
             {result && (
-              <div className={`puzzle-result ${result.correct ? 'correct' : 'incorrect'}`}>
-                <p>{result.message}</p>
-                {result.result && (
+              <div className={`puzzle-result ${result.correct ? 'correct' : 'incorrect'} ${result.forfeit ? 'forfeit' : ''}`}>
+                <p className="result-heading">{result.correct ? 'Solved!' : result.forfeit ? 'Skipped' : 'Failed'}</p>
+                {result.ratingUpdate && (
                   <div className="rating-update">
-                    <span>Rating: {result.result.profile?.puzzleRating}</span>
-                    <span>Streak: {result.result.profile?.currentStreak}</span>
+                    <span className={`rating-delta ${result.ratingUpdate.userDelta >= 0 ? 'positive' : 'negative'}`}>
+                      {result.ratingUpdate.userDelta >= 0 ? '+' : ''}{result.ratingUpdate.userDelta}
+                    </span>
+                    <span className="rating-new">{result.ratingUpdate.newUserRating}</span>
                   </div>
                 )}
+                <div className="result-meta">
+                  <span>Streak: {result.profile?.currentStreak || 0}</span>
+                  <span>Solved: {result.profile?.solvedCount || 0}</span>
+                  <span>Accuracy: {result.profile?.accuracy || 0}%</span>
+                </div>
               </div>
             )}
 
-            <div className="puzzle-nav">
-              <button className="btn btn-primary" onClick={nextPuzzle}>Next Puzzle</button>
-              {profile && (
-                <div className="puzzle-user-stats">
-                  <span>Rating: {profile.puzzleRating}</span>
-                  <span>Solved: {profile.solvedCount}</span>
-                  <span>Streak: {profile.currentStreak}</span>
-                </div>
-              )}
-            </div>
+            {(result?.correct || solved) && (
+              <button className="btn btn-primary next-btn" onClick={nextPuzzle}>
+                Next Puzzle &rarr;
+              </button>
+            )}
+
+            {showSolution && currentPuzzle.solution && (
+              <div className="solution-display">
+                <h4>Solution</h4>
+                <p className="solution-moves">{formatSolution(currentPuzzle.fen, currentPuzzle.solution)}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {tab === 'browse' && (
+      {tab === 'themes' && !selectedTheme && (
+        <div className="puzzles-themes">
+          <div className="themes-header">
+            <h2>Puzzle Themes</h2>
+            <p>Choose a theme to practice specific tactical patterns</p>
+          </div>
+          <div className="themes-grid">
+            {themeList.map(t => (
+              <div key={t.name} className="theme-card" onClick={() => { setSelectedTheme(t.name); setThemePage(1); }}>
+                <span className="theme-card-count">{t.count.toLocaleString()}</span>
+                <span className="theme-card-name">{t.name}</span>
+                <span className="theme-card-arrow">&rarr;</span>
+              </div>
+            ))}
+            {themeList.length === 0 && <p className="text-muted" style={{ gridColumn: '1/-1', textAlign: 'center' }}>No themes available. Import puzzles first.</p>}
+          </div>
+        </div>
+      )}
+
+      {tab === 'themes' && selectedTheme && (
         <div className="puzzles-browse">
-          <div className="browse-filters">
-            <select value={browseTheme} onChange={e => { setBrowseTheme(e.target.value); setBrowsePage(1); }}>
-              {THEMES.map(t => (
-                <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-              ))}
-            </select>
+          <div className="browse-header">
+            <button className="btn btn-sm btn-outline" onClick={() => { setSelectedTheme(null); setThemePuzzles([]); }}>
+              &larr; All Themes
+            </button>
+            <h3>{selectedTheme} <span className="text-muted" style={{ fontWeight: 400 }}>({themeTotal.toLocaleString()} puzzles)</span></h3>
           </div>
           {loading ? <LoadingSpinner /> : (
             <div className="puzzles-grid">
-              {puzzles.map(p => (
+              {themePuzzles.map(p => (
                 <div key={p._id || p.puzzleId} className="puzzle-card" onClick={() => {
                   setCurrentPuzzle(p);
-                  setPuzzleSource('browse');
+                  setPuzzleSource('themes');
                   setSolved(false);
                   setResult(null);
                   setShowSolution(false);
-                  setHint(null);
+                  hintLevelRef.current = 0;
+                  setHintLevel(0);
+                  setHintData(null);
                   setTab('daily');
                 }}>
                   <div className="puzzle-card-header">
@@ -268,18 +521,18 @@ const PuzzlesPage = () => {
                   </div>
                   <div className="puzzle-card-body">
                     <span className="puzzle-themes">{(p.themes || []).slice(0, 3).join(', ') || 'Tactic'}</span>
-                    <span className="puzzle-side">{p.playerSide === 'w' ? 'White' : 'Black'} to move</span>
+                    <span className="puzzle-side">{p.fen?.split(' ')[1] === 'w' ? 'White' : 'Black'} to move</span>
                   </div>
                 </div>
               ))}
-              {puzzles.length === 0 && <p className="text-muted">No puzzles match your filter. Import puzzles first.</p>}
+              {themePuzzles.length === 0 && <p className="text-muted" style={{ gridColumn: '1/-1', textAlign: 'center' }}>No puzzles in this theme.</p>}
             </div>
           )}
-          {browseTotal > 12 && (
+          {themeTotal > 12 && (
             <div className="pagination">
-              <button disabled={browsePage <= 1} onClick={() => setBrowsePage(browsePage - 1)}>Prev</button>
-              <span>{browsePage} / {Math.ceil(browseTotal / 12)}</span>
-              <button disabled={browsePage >= Math.ceil(browseTotal / 12)} onClick={() => setBrowsePage(browsePage + 1)}>Next</button>
+              <button disabled={themePage <= 1} onClick={() => setThemePage(themePage - 1)}>Prev</button>
+              <span>{themePage} / {Math.ceil(themeTotal / 12)}</span>
+              <button disabled={themePage >= Math.ceil(themeTotal / 12)} onClick={() => setThemePage(themePage + 1)}>Next</button>
             </div>
           )}
         </div>
@@ -290,7 +543,7 @@ const PuzzlesPage = () => {
           <div className="stats-grid">
             <div className="stat-card">
               <h3>Global Puzzles</h3>
-              <span className="stat-number">{globalStats?.total?.toLocaleString() || 0}</span>
+              <span className="stat-number">{globalStats?.totalPuzzles?.toLocaleString() || 0}</span>
             </div>
             <div className="stat-card">
               <h3>Your Rating</h3>

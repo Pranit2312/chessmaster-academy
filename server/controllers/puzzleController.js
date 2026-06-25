@@ -1,12 +1,12 @@
+const mongoose = require('mongoose');
 const Puzzle = require('../models/Puzzle');
 const PuzzleProfile = require('../models/PuzzleProfile');
 const puzzleEngine = require('../services/puzzleEngine');
-const puzzleApi = require('../services/puzzleApiService');
 const { Chess } = require('chess.js');
 
 function normalizePuzzle(p) {
   if (!p) return p;
-  return { ...p, _id: String(p._id), puzzleId: String(p.puzzleId || p.fen) };
+  return { ...p, _id: String(p._id), puzzleId: String(p.puzzleId) };
 }
 
 function isUci(move) {
@@ -29,69 +29,79 @@ function convertSolutionToSan(fen, solution) {
   return result;
 }
 
-const FALLBACK_PUZZLES = [
-  { fen: 'r1bqkb1r/pppp1ppp/2n5/4p3/2B1n3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 5', solution: ['Nxe5'], themes: ['fork'], rating: 800, difficulty: 'easy', source: 'fallback', playerSide: 'w', nbPlays: 0, popularity: 50 },
-  { fen: 'r1bq1rk1/pppp1ppp/2n5/2b1P3/2B5/5N2/PPPP1PPP/RNBQ1RK1 b - - 0 6', solution: ['Nxe5'], themes: ['tactic'], rating: 600, difficulty: 'easy', source: 'fallback', playerSide: 'b', nbPlays: 0, popularity: 50 },
-  { fen: 'rnbqkb1r/pppppppp/5n2/4P3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2', solution: ['Nd5'], themes: ['tactic'], rating: 400, difficulty: 'beginner', source: 'fallback', playerSide: 'b', nbPlays: 0, popularity: 50 },
-  { fen: 'r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQ1RK1 b kq - 0 5', solution: ['Nxe4'], themes: ['fork', 'sacrifice'], rating: 1000, difficulty: 'medium', source: 'fallback', playerSide: 'b', nbPlays: 0, popularity: 50 },
-  { fen: '8/5k2/8/8/8/8/5K2/8 w - - 0 1', solution: ['Ke3'], themes: ['endgame'], rating: 1200, difficulty: 'medium', source: 'fallback', playerSide: 'w', nbPlays: 0, popularity: 50 },
-].map(normalizePuzzle);
-
-const fallbackCache = { puzzles: [], daily: null, lastSync: 0, TTL: 300000 };
-
-async function ensureFallbackCache() {
-  if (fallbackCache.puzzles.length > 3 && Date.now() - fallbackCache.lastSync < fallbackCache.TTL) return;
-  const base = [...FALLBACK_PUZZLES];
+function validatePuzzle(puzzle) {
+  if (!puzzle || !puzzle.fen || !puzzle.solution || puzzle.solution.length === 0) return false;
   try {
-    const batch = await puzzleApi.fetchPuzzleBatch(10);
-    if (batch.length > 0) {
-      for (const p of batch) {
-        const normalized = normalizePuzzle(p);
-        normalized.solution = convertSolutionToSan(normalized.fen, normalized.solution);
-        base.push(normalized);
+    const chess = new Chess(puzzle.fen);
+    const sideToMove = chess.turn();
+    const playerSide = puzzle.playerSide || 'w';
+    if (sideToMove !== playerSide) {
+      return false;
+    }
+
+    // Replay all moves, ensuring they produce SAN (not raw UCI)
+    // This catches mixed SAN/UCI solutions from buggy imports
+    const test = new Chess(puzzle.fen);
+    const expectedColor = sideToMove;
+    for (let i = 0; i < puzzle.solution.length; i++) {
+      let moveResult;
+      try {
+        moveResult = test.move(puzzle.solution[i], { sloppy: true });
+      } catch {
+        return false;
+      }
+      if (!moveResult) return false;
+      // Verify the output is SAN (moveResult.san is always SAN from chess.js)
+      const isUci = /^[a-h][1-8][a-h][1-8]([qrbn])?$/.test(puzzle.solution[i]);
+      if (isUci && moveResult.san !== puzzle.solution[i]) {
+        return false; // Stored UCI but produced different SAN — mixed solution
+      }
+      const turnAtMove = i % 2 === 0 ? expectedColor : (expectedColor === 'w' ? 'b' : 'w');
+      if (moveResult.color !== turnAtMove) {
+        return false;
       }
     }
-  } catch {}
-  fallbackCache.puzzles = base;
-  fallbackCache.lastSync = Date.now();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-async function findPuzzle(puzzleId) {
-  if (!puzzleId) return null;
-  let db;
-  if (puzzleId.length === 24 || puzzleId.length > 30) {
-    db = await Puzzle.findById(puzzleId).lean().catch(() => null);
+async function getOrCreateProfile(userId) {
+  let profile = await PuzzleProfile.findOne({ user: userId });
+  if (!profile) {
+    profile = await PuzzleProfile.create({ user: userId });
   }
-  if (!db) {
-    db = await Puzzle.findOne({ puzzleId }).lean().catch(() => null);
-  }
-  if (!db && puzzleId.includes('/')) {
-    db = await Puzzle.findOne({ fen: puzzleId }).lean().catch(() => null);
-  }
-  if (db) return db;
-  await ensureFallbackCache();
-  return fallbackCache.puzzles.find(p => p.puzzleId === puzzleId || p._id === puzzleId || p.fen === puzzleId) || null;
+  return profile;
 }
 
-function enrichPuzzleForResponse(p) {
-  if (!p) return p;
-  return normalizePuzzle(p);
+const dailyPuzzleCache = { puzzle: null, date: '' };
+
+function getDailyPuzzleId() {
+  const today = new Date().toISOString().slice(0, 10);
+  let hash = 0;
+  for (let i = 0; i < today.length; i++) {
+    hash = ((hash << 5) - hash) + today.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
 }
 
 exports.getRandom = async (req, res) => {
   try {
-    const count = await Puzzle.countDocuments({ isActive: true });
-    if (count > 0) {
-      const skip = Math.floor(Math.random() * count);
-      const puzzle = await Puzzle.findOne({ isActive: true }).skip(skip).lean();
-      if (puzzle) return res.json({ success: true, puzzle: enrichPuzzleForResponse(puzzle) });
+    let puzzle = null;
+    for (let attempts = 0; attempts < 8; attempts++) {
+      const [candidate] = await Puzzle.aggregate([
+        { $match: { isActive: true } },
+        { $sample: { size: 1 } }
+      ]);
+      if (candidate && validatePuzzle(candidate)) {
+        puzzle = candidate;
+        break;
+      }
     }
-
-    await ensureFallbackCache();
-    const fb = fallbackCache.puzzles;
-    if (fb.length === 0) return res.json({ success: false, message: 'No puzzles available' });
-    const puzzle = fb[Math.floor(Math.random() * fb.length)];
-    res.json({ success: true, puzzle: enrichPuzzleForResponse(puzzle) });
+    if (!puzzle) return res.json({ success: false, message: 'No valid puzzles available' });
+    res.json({ success: true, puzzle: normalizePuzzle(puzzle) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -99,34 +109,32 @@ exports.getRandom = async (req, res) => {
 
 exports.getDaily = async (req, res) => {
   try {
-    let puzzle = await puzzleEngine.getPuzzleOfTheDay();
-
-    if (!puzzle) {
-      await ensureFallbackCache();
-      const today = new Date().toDateString();
-      if (!fallbackCache.daily || new Date(fallbackCache.daily._cachedAt || 0).toDateString() !== today) {
-        const api = await puzzleApi.fetchDailyPuzzle();
-        if (api) {
-          api._cachedAt = Date.now();
-          api.solution = convertSolutionToSan(api.fen, api.solution);
-          fallbackCache.daily = normalizePuzzle(api);
-        } else {
-          const fb = fallbackCache.puzzles;
-          fallbackCache.daily = fb.length > 0 ? fb[Math.floor(Math.random() * fb.length)] : FALLBACK_PUZZLES[0];
-          if (fallbackCache.daily) fallbackCache.daily._cachedAt = Date.now();
+    const today = new Date().toISOString().slice(0, 10);
+    if (dailyPuzzleCache.date !== today) {
+      dailyPuzzleCache.puzzle = null;
+      dailyPuzzleCache.date = '';
+      const seed = getDailyPuzzleId();
+      const count = await Puzzle.countDocuments({ isActive: true });
+      if (count > 0) {
+        for (let offset = 0; offset < 100; offset++) {
+          const skip = (seed + offset) % count;
+          const candidate = await Puzzle.findOne({ isActive: true }).skip(skip).lean();
+          if (candidate && validatePuzzle(candidate)) {
+            dailyPuzzleCache.puzzle = candidate;
+            break;
+          }
         }
+        dailyPuzzleCache.date = today;
       }
-      puzzle = fallbackCache.daily;
     }
-
+    const puzzle = dailyPuzzleCache.puzzle;
     if (!puzzle) return res.json({ success: false, message: 'No puzzles available.' });
 
-    const profile = await puzzleEngine.getOrCreateProfile(req.user._id).catch(() => null);
+    const profile = await getOrCreateProfile(req.user._id).catch(() => null);
     const dailySolved = profile?.dailyPuzzleSolved || false;
     const lastDaily = profile?.lastDailyDate || '';
-    const today = new Date().toISOString().slice(0, 10);
 
-    res.json({ success: true, puzzle: enrichPuzzleForResponse(puzzle), dailySolved: dailySolved && lastDaily === today });
+    res.json({ success: true, puzzle: normalizePuzzle(puzzle), dailySolved: dailySolved && lastDaily === today });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -136,17 +144,10 @@ exports.getByTheme = async (req, res) => {
   try {
     const { theme } = req.params;
     const { limit = 20, page = 1 } = req.query || {};
-
-    const puzzles = await Puzzle.getByTheme(theme, parseInt(limit));
-    if (puzzles.length > 0) {
-      const total = await Puzzle.countDocuments({ isActive: true, themes: theme });
-      return res.json({ success: true, puzzles: puzzles.map(enrichPuzzleForResponse), total, page: parseInt(page), pages: Math.ceil(total / limit) });
-    }
-
-    await ensureFallbackCache();
-    const filtered = fallbackCache.puzzles.filter(p => (p.themes || []).includes(theme) || p.theme === theme);
-    const paged = filtered.slice(0, parseInt(limit)).map(enrichPuzzleForResponse);
-    res.json({ success: true, puzzles: paged, total: filtered.length, page: parseInt(page), pages: Math.ceil(filtered.length / limit), source: 'fallback' });
+    const puzzles = await Puzzle.getByTheme(theme, parseInt(limit) * 3);
+    const valid = puzzles.filter(p => validatePuzzle(p)).slice(0, parseInt(limit));
+    const total = await Puzzle.countDocuments({ isActive: true, themes: theme });
+    res.json({ success: true, puzzles: valid.map(normalizePuzzle), total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -156,17 +157,28 @@ exports.getByRating = async (req, res) => {
   try {
     const { min = 0, max = 3500 } = req.params.range ? req.params.range.split('-').map(Number) : {};
     const { limit = 20, page = 1 } = req.query || {};
+    const puzzles = await Puzzle.getByRatingRange(min, max, parseInt(limit) * 2);
+    const valid = puzzles.filter(validatePuzzle).slice(0, parseInt(limit));
+    const total = await Puzzle.countDocuments({ isActive: true, rating: { $gte: min, $lte: max } });
+    res.json({ success: true, puzzles: valid.map(normalizePuzzle), total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
-    const puzzles = await Puzzle.getByRatingRange(min, max, parseInt(limit));
-    if (puzzles.length > 0) {
-      const total = await Puzzle.countDocuments({ isActive: true, rating: { $gte: min, $lte: max } });
-      return res.json({ success: true, puzzles: puzzles.map(enrichPuzzleForResponse), total, page: parseInt(page), pages: Math.ceil(total / limit) });
-    }
-
-    await ensureFallbackCache();
-    const filtered = fallbackCache.puzzles.filter(p => p.rating >= min && p.rating <= max);
-    const paged = filtered.slice(0, parseInt(limit)).map(enrichPuzzleForResponse);
-    res.json({ success: true, puzzles: paged, total: filtered.length, page: parseInt(page), pages: Math.ceil(filtered.length / limit), source: 'fallback' });
+exports.getBySingleRating = async (req, res) => {
+  try {
+    const { rating } = req.params;
+    const r = parseInt(rating);
+    if (isNaN(r)) return res.status(400).json({ success: false, message: 'Invalid rating' });
+    const range = 100;
+    const min = Math.max(200, r - range);
+    const max = Math.min(3500, r + range);
+    const { limit = 20, page = 1 } = req.query || {};
+    const puzzles = await Puzzle.getByRatingRange(min, max, parseInt(limit) * 2);
+    const valid = puzzles.filter(validatePuzzle).slice(0, parseInt(limit));
+    const total = await Puzzle.countDocuments({ isActive: true, rating: { $gte: min, $lte: max } });
+    res.json({ success: true, puzzles: valid.map(normalizePuzzle), total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -175,12 +187,50 @@ exports.getByRating = async (req, res) => {
 exports.getRecommended = async (req, res) => {
   try {
     const { limit = 10 } = req.query || {};
-    const puzzles = await puzzleEngine.getRecommended(req.user._id, parseInt(limit)).catch(() => null);
-    if (puzzles && puzzles.length > 0) return res.json({ success: true, puzzles: puzzles.map(enrichPuzzleForResponse) });
+    const profile = await getOrCreateProfile(req.user._id);
+    const weakThemes = [];
+    if (profile.themeStats) {
+      for (const [theme, stats] of profile.themeStats) {
+        if (stats.attempts >= 3 && (stats.solved / stats.attempts) < 0.4) {
+          weakThemes.push(theme);
+        }
+      }
+    }
+    const puzzles = await Puzzle.getRecommended({ puzzleRating: profile.puzzleRating || 1200, weakThemes }, parseInt(limit) * 2);
+    const valid = puzzles.filter(validatePuzzle).slice(0, parseInt(limit));
+    if (valid.length === 0) {
+      const fallbackPuzzles = await Puzzle.find({ isActive: true }).sort({ popularity: -1 }).limit(parseInt(limit) * 2).lean();
+      const fallbackValid = fallbackPuzzles.filter(validatePuzzle).slice(0, parseInt(limit));
+      return res.json({ success: true, puzzles: fallbackValid.map(normalizePuzzle) });
+    }
+    res.json({ success: true, puzzles: valid.map(normalizePuzzle) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
-    await ensureFallbackCache();
-    const fb = fallbackCache.puzzles.slice(0, parseInt(limit)).map(enrichPuzzleForResponse);
-    res.json({ success: true, puzzles: fb, source: 'fallback' });
+exports.search = async (req, res) => {
+  try {
+    const { limit = 20, theme, minRating, maxRating, rating, popularity } = req.query;
+    const puzzles = await Puzzle.searchPuzzles({ theme, minRating: parseInt(minRating), maxRating: parseInt(maxRating), rating: parseInt(rating), popularity: parseInt(popularity) }, parseInt(limit) * 2);
+    const valid = puzzles.filter(validatePuzzle).slice(0, parseInt(limit));
+    res.json({ success: true, puzzles: valid.map(normalizePuzzle), total: valid.length });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.getById = async (req, res) => {
+  try {
+    const { puzzleId } = req.params;
+    let puzzle;
+    if (puzzleId.length === 24) {
+      puzzle = await Puzzle.findById(puzzleId).lean().catch(() => null);
+    }
+    if (!puzzle) puzzle = await Puzzle.findOne({ puzzleId }).lean();
+    if (!puzzle) return res.status(404).json({ success: false, message: 'Puzzle not found' });
+    if (!validatePuzzle(puzzle)) return res.status(400).json({ success: false, message: 'Invalid puzzle data' });
+    res.json({ success: true, puzzle: normalizePuzzle(puzzle) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -188,58 +238,94 @@ exports.getRecommended = async (req, res) => {
 
 exports.check = async (req, res) => {
   try {
-    const { puzzleId, move, timeMs = 0 } = req.body;
-
-    const puzzle = await findPuzzle(puzzleId);
+    const { puzzleId, move, timeMs = 0, completed = false, forfeit = false } = req.body;
+    let puzzle;
+    if (puzzleId && puzzleId.length === 24) {
+      puzzle = await Puzzle.findById(puzzleId).lean().catch(() => null);
+    }
+    if (!puzzle) puzzle = await Puzzle.findOne({ puzzleId }).lean();
     if (!puzzle) return res.status(404).json({ success: false, message: 'Puzzle not found' });
 
+    // Forfeit — user gave up (Show Solution or skip)
+    if (forfeit) {
+      const engResult = await puzzleEngine.recordSolve(req.user._id, puzzle, false, timeMs);
+      return res.json({
+        success: true,
+        correct: false,
+        forfeit: true,
+        message: 'Puzzle skipped',
+        ratingUpdate: engResult.ratingUpdate,
+        profile: engResult.profile
+      });
+    }
+
+    // Validate the full solution line
     const chess = new Chess(puzzle.fen);
+    const sideToMove = chess.turn();
+    const correctMoves = [];
+    let gameOver = false;
+    let validSolution = true;
+    for (const rawMove of (puzzle.solution || [])) {
+      let played;
+      try {
+        played = chess.move(rawMove, { sloppy: true });
+      } catch {
+        validSolution = false;
+        break;
+      }
+      if (!played) { validSolution = false; break; }
+      correctMoves.push(played.san);
+    }
+    gameOver = chess.isGameOver();
+    const fenAfter = chess.fen();
+
+    if (!validSolution) {
+      return res.status(500).json({ success: false, message: 'Invalid puzzle solution in database' });
+    }
+
+    // completed: true means user played through the entire solution
+    if (completed) {
+      const engResult = await puzzleEngine.recordSolve(req.user._id, puzzle, true, timeMs);
+      await Puzzle.updateOne({ _id: puzzle._id }, { $inc: { solvedCount: 1 } }).catch(() => {});
+      return res.json({
+        success: true,
+        correct: true,
+        message: 'Correct! Puzzle solved!',
+        san: correctMoves[correctMoves.length - 1],
+        fen: fenAfter,
+        gameOver,
+        solution: [],
+        ratingUpdate: engResult.ratingUpdate,
+        profile: engResult.profile
+      });
+    }
+
+    // Non-final move check: validate the single move against the solution
+    const testChess = new Chess(puzzle.fen);
     let playerMove;
     try {
-      playerMove = chess.move(move);
+      playerMove = testChess.move(move);
     } catch {
-      const match = chess.moves({ verbose: true }).filter(m =>
+      const match = testChess.moves({ verbose: true }).filter(m =>
         m.san.toLowerCase().startsWith(move.toLowerCase())
       );
       if (match.length === 1) {
-        playerMove = chess.move(match[0].san);
+        playerMove = testChess.move(match[0].san);
       } else {
-        const result = await puzzleEngine.recordSolve(req.user._id, puzzle, false, timeMs).catch(() => null);
-        return res.json({
-          success: true,
-          correct: false,
-          message: 'Invalid move',
-          result
-        });
+        return res.json({ success: true, correct: false, message: 'Invalid move' });
       }
     }
 
-    const correctMoves = convertSolutionToSan(puzzle.fen, puzzle.solution || []);
     const isCorrect = correctMoves.length > 0 && playerMove.san === correctMoves[0];
-
-    const result = await puzzleEngine.recordSolve(req.user._id, puzzle, isCorrect, timeMs).catch(() => null);
-
-    const hint = isCorrect
-      ? null
-      : await puzzleEngine.getHint(puzzle.fen).catch(() => null);
-
-    if (isCorrect && puzzleId && !puzzleId.startsWith('fallback-')) {
-      await Puzzle.updateOne({ puzzleId }, { $inc: { solvedCount: 1 } }).catch(() => {});
-    }
-
-    const chessAfter = new Chess(puzzle.fen);
-    chessAfter.move(playerMove.san);
 
     res.json({
       success: true,
       correct: isCorrect,
       message: isCorrect ? 'Correct!' : 'Incorrect. Try again!',
       san: playerMove.san,
-      fen: chessAfter.fen(),
-      gameOver: chessAfter.isGameOver(),
-      solution: correctMoves.slice(1),
-      hint: hint?.move || null,
-      result
+      fen: fenAfter,
+      gameOver,
+      solution: correctMoves.slice(1)
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -248,14 +334,14 @@ exports.check = async (req, res) => {
 
 exports.getStats = async (req, res) => {
   try {
-    const [globalStats, profile] = await Promise.all([
-      puzzleEngine.getGlobalStats(),
-      puzzleEngine.getOrCreateProfile(req.user._id).catch(() => null)
+    const [totalPuzzles, profile] = await Promise.all([
+      Puzzle.countDocuments({ isActive: true }),
+      getOrCreateProfile(req.user._id).catch(() => null)
     ]);
 
     res.json({
       success: true,
-      global: globalStats,
+      global: { totalPuzzles },
       user: profile ? {
         puzzleRating: profile.puzzleRating,
         solvedCount: profile.solvedCount,
@@ -273,9 +359,25 @@ exports.getStats = async (req, res) => {
   }
 };
 
+exports.getThemes = async (req, res) => {
+  try {
+    const themes = await Puzzle.distinct('themes', { isActive: true });
+    const counts = await Promise.all(
+      themes.map(theme =>
+        Puzzle.countDocuments({ isActive: true, themes: theme })
+          .then(c => ({ name: theme, count: c }))
+      )
+    );
+    counts.sort((a, b) => b.count - a.count);
+    res.json({ success: true, themes: counts });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 exports.getProfile = async (req, res) => {
   try {
-    const profile = await puzzleEngine.getOrCreateProfile(req.user._id);
+    const profile = await getOrCreateProfile(req.user._id);
     const recentHistory = (profile.puzzleHistory || []).slice(-20).reverse();
 
     res.json({
@@ -304,7 +406,7 @@ exports.getProfile = async (req, res) => {
 
 exports.markDailySolved = async (req, res) => {
   try {
-    const profile = await puzzleEngine.getOrCreateProfile(req.user._id);
+    const profile = await getOrCreateProfile(req.user._id);
     const today = new Date().toISOString().slice(0, 10);
     profile.dailyPuzzleSolved = true;
     profile.lastDailyDate = today;
@@ -315,14 +417,174 @@ exports.markDailySolved = async (req, res) => {
   }
 };
 
+const HINT_THEMES = {
+  fork: 'Look for a fork — one piece attacking two or more targets',
+  pin: 'Look for a pin — a piece that cannot move without exposing a more valuable piece',
+  skewer: 'Look for a skewer — a valuable piece in the line of attack with a less valuable piece behind it',
+  discoveredattack: 'Look for a discovered attack — moving one piece to reveal an attack by another',
+  discoveredcheck: 'Look for discovered check — moving a piece to reveal check from another',
+  sacrifice: 'Consider a sacrifice — giving up material for a positional or attacking advantage',
+  deflection: 'Look for a deflection — forcing a piece away from a defensive task',
+  attraction: 'Look for an attraction — luring a piece to a vulnerable square',
+  clearance: 'Look for a clearance sacrifice — removing a piece that blocks your own attack',
+  interference: 'Look for an interference move — placing a piece between an attacker and its target',
+  trapping: 'Look for a trapped piece — a piece with no escape squares',
+  promotion: 'Consider promoting a pawn to gain material',
+  endgame: 'In the endgame, look for king activity and pawn promotion',
+  matein1: 'Checkmate in one move!',
+  matein2: 'Checkmate in two moves — look for a forcing sequence',
+  matein3: 'Checkmate in three moves — find the attacking sequence',
+  matein4: 'Checkmate in four moves — calculate the full line',
+  middlegame: 'Look for tactical motifs — forks, pins, or discovered attacks'
+};
+
 exports.getHint = async (req, res) => {
   try {
     const { puzzleId } = req.params;
-    const puzzle = await findPuzzle(puzzleId);
+    let puzzle;
+    if (puzzleId.length === 24) {
+      puzzle = await Puzzle.findById(puzzleId).lean().catch(() => null);
+    }
+    if (!puzzle) puzzle = await Puzzle.findOne({ puzzleId }).lean();
     if (!puzzle) return res.status(404).json({ success: false, message: 'Puzzle not found' });
 
-    const hint = await puzzleEngine.getHint(puzzle.fen);
-    res.json({ success: true, hint });
+    const moves = convertSolutionToSan(puzzle.fen, puzzle.solution || []);
+    const firstMove = moves.length > 0 ? moves[0] : null;
+    const firstMoveRaw = puzzle.solution?.[0] || '';
+    const themeHint = (puzzle.themes || [])
+      .map(t => HINT_THEMES[t.toLowerCase().replace(/\s+/g, '')])
+      .filter(Boolean);
+    const hintText = themeHint.length > 0
+      ? themeHint[0]
+      : 'Look for tactics in this position';
+
+    let from = '';
+    let to = '';
+    if (firstMoveRaw.length >= 4) {
+      from = firstMoveRaw.slice(0, 2);
+      to = firstMoveRaw.slice(2, 4);
+    } else {
+      const chess = new Chess(puzzle.fen);
+      try {
+        const m = chess.move(firstMoveRaw, { sloppy: true });
+        from = m.from;
+        to = m.to;
+      } catch {
+        try {
+          const g = new Chess(puzzle.fen);
+          const match = g.moves({ verbose: true }).find(mv => mv.san === firstMove);
+          if (match) { from = match.from; to = match.to; }
+        } catch {}
+      }
+    }
+
+    res.json({
+      success: true,
+      hint: {
+        move: firstMove,
+        text: hintText,
+        fen: puzzle.fen,
+        rating: puzzle.rating,
+        from,
+        to,
+        solution: moves
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+let healthCache = { totalPuzzles: 0, ratingRange: null, themeCount: 0, dbSizeMB: 0, indexedFields: [], ts: 0 };
+const HEALTH_CACHE_TTL = 300000;
+
+async function refreshHealthCache() {
+  try {
+    const [totalPuzzles, ratingStats, themes, indexes, collStats] = await Promise.all([
+      Puzzle.countDocuments({ isActive: true }),
+      Puzzle.aggregate([
+        { $match: { isActive: true } },
+        { $group: { _id: null, min: { $min: '$rating' }, max: { $max: '$rating' } } }
+      ]),
+      Puzzle.distinct('themes'),
+      Puzzle.collection.indexes(),
+      mongoose.connection.db.command({ collStats: 'puzzles' })
+    ]);
+    healthCache = {
+      totalPuzzles,
+      ratingRange: ratingStats[0] ? { min: ratingStats[0].min, max: ratingStats[0].max } : null,
+      themeCount: (themes || []).filter(Boolean).length,
+      dbSizeMB: +(collStats.size / 1024 / 1024).toFixed(1),
+      indexedFields: [...new Set(indexes.map(i => Object.keys(i.key)).flat())],
+      ts: Date.now()
+    };
+  } catch (err) {
+    console.error('Health cache refresh failed:', err.message);
+  }
+}
+
+exports.health = async (req, res) => {
+  try {
+    if (Date.now() - healthCache.ts > HEALTH_CACHE_TTL || healthCache.totalPuzzles === 0) {
+      await refreshHealthCache();
+    }
+    res.json({ success: true, ...healthCache, importStatus: healthCache.totalPuzzles > 0 ? 'imported' : 'empty' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.warmHealthCache = refreshHealthCache;
+
+exports.debugPuzzle = async (req, res) => {
+  try {
+    const { id } = req.params;
+    let puzzle;
+    if (id.length === 24) puzzle = await Puzzle.findById(id).lean().catch(() => null);
+    if (!puzzle) puzzle = await Puzzle.findOne({ puzzleId: id }).lean();
+    if (!puzzle) return res.status(404).json({ success: false, message: 'Puzzle not found' });
+
+    const chess = new Chess(puzzle.fen);
+    const sideToMove = chess.turn();
+    let isValid = true;
+    let moveCount = 0;
+    const sanMoves = [];
+    const testChess = new Chess(puzzle.fen);
+
+    for (const raw of (puzzle.solution || [])) {
+      try {
+        const m = testChess.move(raw, { sloppy: true });
+        sanMoves.push({ raw, san: m.san, color: m.color, from: m.from, to: m.to });
+        moveCount++;
+      } catch (e) {
+        sanMoves.push({ raw, error: e.message });
+        isValid = false;
+        break;
+      }
+    }
+
+    const firstMoveUci = puzzle.solution?.[0] || '';
+    const fromFirst = firstMoveUci.length >= 4 ? firstMoveUci.slice(0, 2) : '';
+    const toFirst = firstMoveUci.length >= 4 ? firstMoveUci.slice(2, 4) : '';
+
+    res.json({
+      success: true,
+      puzzleId: puzzle.puzzleId,
+      fen: puzzle.fen,
+      sideToMove,
+      playerSide: puzzle.playerSide,
+      firstMoveRaw: firstMoveUci,
+      firstMoveFrom: fromFirst,
+      firstMoveTo: toFirst,
+      firstMoveSan: sanMoves[0]?.san || '',
+      moveCount,
+      solutionLength: puzzle.solution?.length || 0,
+      sanMoves,
+      isValid,
+      playerSideMatchesFen: puzzle.playerSide === sideToMove,
+      rating: puzzle.rating,
+      themes: puzzle.themes
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

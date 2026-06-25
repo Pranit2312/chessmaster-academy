@@ -1,6 +1,6 @@
 .course-detail-page {
   padding-bottom: 4rem;
-  background-color: var(--bg-secondary);
+  background-color: var(--surface-secondary);
 }
 
 .course-hero {
@@ -66,17 +66,17 @@
 }
 
 .course-main {
-  background-color: var(--card-bg);
+  background-color: var(--surface-primary);
   border-radius: 12px;
   box-shadow: var(--shadow);
   overflow: hidden;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-light);
 }
 
 .tabs {
   display: flex;
-  border-bottom: 1px solid var(--border-color);
-  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-light);
+  background-color: var(--surface-primary);
 }
 
 .tab {
@@ -91,9 +91,9 @@
 }
 
 .tab.active {
-  color: var(--primary-color);
-  border-bottom-color: var(--primary-color);
-  background-color: var(--card-bg);
+  color: var(--brand-600);
+  border-bottom-color: var(--brand-600);
+  background-color: var(--surface-primary);
 }
 
 .tab-content {
@@ -120,9 +120,9 @@
   display: flex;
   justify-content: space-between;
   padding: 1rem;
-  background-color: var(--bg-secondary);
+  background-color: var(--surface-secondary);
   border-radius: 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-light);
   color: var(--text-secondary);
 }
 
@@ -133,11 +133,11 @@
 }
 
 .course-card-sidebar {
-  background-color: var(--card-bg);
+  background-color: var(--surface-primary);
   padding: 2rem;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-light);
 }
 
 .pricing-section {
@@ -152,7 +152,7 @@
 
 .course-includes {
   margin-top: 2rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-light);
   padding-top: 1.5rem;
 }
 

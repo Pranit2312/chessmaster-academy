@@ -1,12 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Chessboard } from 'react-chessboard';
+import { Chess } from 'chess.js';
 import { puzzleAPI } from '../../utils/api';
+
+function validatePuzzle(puzzle) {
+  if (!puzzle || !puzzle.fen || !puzzle.solution || puzzle.solution.length === 0) return false;
+  try {
+    const chess = new Chess(puzzle.fen);
+    const sideToMove = chess.turn();
+    const firstMove = puzzle.solution[0];
+    const chess2 = new Chess(puzzle.fen);
+    const move = chess2.move(firstMove, { sloppy: true });
+    if (!move || move.color !== sideToMove) return false;
+    return true;
+  } catch { return false; }
+}
 
 const StudentPuzzleWidget = () => {
   const navigate = useNavigate();
   const [puzzle, setPuzzle] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sideToMove, setSideToMove] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -15,7 +31,14 @@ const StudentPuzzleWidget = () => {
           puzzleAPI.getDaily(),
           puzzleAPI.getProfile()
         ]);
-        if (dailyRes.status === 'fulfilled') setPuzzle(dailyRes.value.data.puzzle);
+        const p = dailyRes.status === 'fulfilled' ? dailyRes.value.data.puzzle : null;
+        if (p && validatePuzzle(p)) {
+          setPuzzle(p);
+          try {
+            const c = new Chess(p.fen);
+            setSideToMove(c.turn() === 'w' ? 'White' : 'Black');
+          } catch {}
+        }
         if (profileRes.status === 'fulfilled') setProfile(profileRes.value.data.profile);
       } catch {} finally { setLoading(false); }
     };
@@ -23,94 +46,60 @@ const StudentPuzzleWidget = () => {
   }, []);
 
   return (
-    <section className="dashboard-section puzzle-widget">
-      <div className="widget-header">
+    <div className="dash-section">
+      <div className="dash-section-header">
         <h3>Daily Puzzle</h3>
-        <button className="btn btn-text" onClick={() => navigate('/puzzles')}>
-          All Puzzles →
+        <button className="btn btn-sm btn-ghost" onClick={() => navigate('/puzzles')}>
+          All Puzzles
         </button>
       </div>
-
-      {loading ? (
-        <p>Loading puzzle...</p>
-      ) : puzzle ? (
-        <div className="puzzle-widget-content">
-          <div className="puzzle-widget-board" onClick={() => navigate('/puzzles')} style={{ cursor: 'pointer' }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(8, 1fr)',
-              width: 200, height: 200,
-              border: '1px solid var(--border-color)',
-              borderRadius: 4, overflow: 'hidden',
-              margin: '0 auto'
-            }}>
-              {(() => {
-                const rows = [7, 6, 5, 4, 3, 2, 1, 0];
-                const cols = [0, 1, 2, 3, 4, 5, 6, 7];
-                const fen = puzzle.fen;
-                const positions = {};
-                const fenParts = fen.split(' ')[0];
-                const fenRows = fenParts.split('/');
-                fenRows.forEach((row, ri) => {
-                  let ci = 0;
-                  for (const ch of row) {
-                    if (ch >= '1' && ch <= '8') { ci += parseInt(ch); continue; }
-                    positions[FILES[ci] + (8 - ri)] = ch;
-                    ci++;
-                  }
-                });
-                return rows.flatMap(row =>
-                  cols.map(col => {
-                    const sq = FILES[col] + (row + 1);
-                    const piece = positions[sq];
-                    const isLight = (row + col) % 2 === 0;
-                    const pieceUnicode = {
-                      'k': '\u265A', 'q': '\u265B', 'r': '\u265C', 'b': '\u265D', 'n': '\u265E', 'p': '\u265F',
-                      'K': '\u2654', 'Q': '\u2655', 'R': '\u2656', 'B': '\u2657', 'N': '\u2658', 'P': '\u2659'
-                    };
-                    return (
-                      <div key={sq}
-                        style={{
-                          background: isLight ? '#f0d9b5' : '#b58863',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 18
-                        }}>
-                        {piece ? pieceUnicode[piece] || '' : ''}
-                      </div>
-                    );
-                  })
-                );
-              })()}
+      <div className="dash-section-body" style={{ textAlign: 'center' }}>
+        {loading ? (
+          <div style={{ padding: '2rem' }}><div className="spinner" /></div>
+        ) : puzzle ? (
+          <>
+            <div onClick={() => navigate('/puzzles')} style={{ cursor: 'pointer', display: 'inline-block' }}>
+              <Chessboard
+                id="dashboard-puzzle"
+                position={puzzle.fen}
+                boardWidth={220}
+                arePiecesDraggable={false}
+                animationDuration={200}
+                customBoardStyle={{
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}
+                customDarkSquareStyle={{ backgroundColor: '#b58863' }}
+                customLightSquareStyle={{ backgroundColor: '#f0d9b5' }}
+              />
             </div>
-          </div>
-          <div className="puzzle-widget-meta" style={{ textAlign: 'center', marginTop: 8 }}>
-            <span className="badge" style={{
-              background: 'var(--primary)', color: '#fff', padding: '2px 10px', borderRadius: 12, fontSize: 12
-            }}>
-              {puzzle.rating || '?'}
-            </span>
-            <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
-              {(puzzle.themes || []).slice(0, 2).join(', ') || 'Tactic'}
-            </span>
-          </div>
-          {profile && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
-              <span>Rating: {profile.puzzleRating}</span>
-              <span>Streak: {profile.currentStreak}</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginTop: '0.75rem' }}>
+              <span className="badge badge-primary">{puzzle.rating || '?'}</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                {sideToMove} to move
+              </span>
+              <span className="badge badge-neutral">
+                {(puzzle.themes || []).slice(0, 2).join(', ') || 'Tactic'}
+              </span>
             </div>
-          )}
-        </div>
-      ) : (
-        <p className="empty-state">
-          No puzzle available right now.
-          <button className="btn btn-primary btn-sm" style={{ marginTop: '0.75rem' }} onClick={() => navigate('/puzzles')}>
-            Browse Puzzles
-          </button>
-        </p>
-      )}
-    </section>
+            {profile && (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                <span>Rating: <strong>{profile.puzzleRating}</strong></span>
+                <span>Streak: <strong>{profile.currentStreak}</strong></span>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ padding: '1.5rem' }}>
+            <p style={{ marginBottom: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No puzzle available right now.</p>
+            <button className="btn btn-primary btn-sm" onClick={() => navigate('/puzzles')}>
+              Browse Puzzles
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
-const FILES = 'abcdefgh';
 export default StudentPuzzleWidget;

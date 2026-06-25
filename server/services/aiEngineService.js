@@ -25,6 +25,20 @@ const DIFFICULTY_MAP = {
   20: { elo: 3000, depth: 30, label: 'Perfect Play' }
 };
 
+function safeWrite(eng, command) {
+  try {
+    if (eng && !eng.killed && eng.stdin && eng.exitCode === null) {
+      eng.stdin.write(command + '\n');
+      return true;
+    }
+  } catch (err) {
+    if (err.code === 'EPIPE' || err.code === 'ECONNRESET' || (err.message && err.message.includes('Broken pipe'))) {
+      // silently skip during shutdown
+    }
+  }
+  return false;
+}
+
 const engine = (() => {
   let nativeEngine = null;
 
@@ -41,6 +55,8 @@ const engine = (() => {
       return new Promise((resolve) => {
         try {
           const eng = spawn(enginePath, [], { stdio: ['pipe', 'pipe', 'pipe'] });
+          eng.on('error', () => {});
+          eng.stdin.on('error', () => {});
           let buffer = '';
           const onData = (data) => {
             buffer += data.toString();
@@ -51,8 +67,8 @@ const engine = (() => {
             }
           };
           eng.stdout.on('data', onData);
-          eng.stdin.write('uci\n');
-          eng.stdin.write('isready\n');
+          safeWrite(eng, 'uci');
+          safeWrite(eng, 'isready');
           setTimeout(() => resolve(eng), 2000);
         } catch {
           resolve(null);
@@ -61,12 +77,12 @@ const engine = (() => {
     },
 
     setSkillLevel(eng, elo) {
-      eng.stdin.write(`setoption name UCI_LimitStrength value true\n`);
-      eng.stdin.write(`setoption name UCI_Elo value ${elo}\n`);
+      safeWrite(eng, `setoption name UCI_LimitStrength value true`);
+      safeWrite(eng, `setoption name UCI_Elo value ${elo}`);
     },
 
     setFullStrength(eng) {
-      eng.stdin.write(`setoption name UCI_LimitStrength value false\n`);
+      safeWrite(eng, `setoption name UCI_LimitStrength value false`);
     }
   };
 })();
@@ -135,7 +151,7 @@ async function getNativeBotMove(eng, chess, config) {
         }
         if (t.startsWith('bestmove')) {
           clearTimeout(timeout);
-          eng.stdout.removeListener('data', onData);
+          try { eng.stdout.removeListener('data', onData); } catch {}
           const parts = t.split(/\s+/);
           bestMoveUci = parts[1] && parts[1] !== '(none)' ? parts[1] : null;
 
@@ -158,10 +174,10 @@ async function getNativeBotMove(eng, chess, config) {
     };
 
     eng.stdout.on('data', onData);
-    eng.stdin.write(`position fen ${fen}\n`);
+    safeWrite(eng, `position fen ${fen}`);
 
     const moveTime = Math.min(500 + config.depth * 100, 5000);
-    eng.stdin.write(`go movetime ${moveTime}\n`);
+    safeWrite(eng, `go movetime ${moveTime}`);
   });
 }
 

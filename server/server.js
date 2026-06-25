@@ -15,9 +15,15 @@ dotenv.config();
 
 const { validateEnv } = require('./config/env');
 const logger = require('./utils/logger');
+
+// Patch console to forward through structured logger
+const origError = console.error;
+const origWarn = console.warn;
+console.error = (...args) => { logger.error(args.map(a => typeof a === 'object' ? (a.message || JSON.stringify(a)) : a).join(' ')); };
+console.warn = (...args) => { logger.warn(args.map(a => typeof a === 'object' ? (a.message || JSON.stringify(a)) : a).join(' ')); };
 const startCronJobs = require('./utils/cronJobs');
 const SocketHandler = require('./services/socketHandler');
-
+const { startEventLoopMonitor, stopEventLoopMonitor, startMemoryMonitor, stopMemoryMonitor } = require('./utils/monitor');
 validateEnv();
 
 const app = express();
@@ -25,7 +31,29 @@ const PORT = process.env.PORT || 5005;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 
+// Startup logging of critical env vars
+console.log('=== ENV STARTUP ===');
+console.log('CLIENT_URL:', process.env.CLIENT_URL);
+console.log('PORT:', process.env.PORT);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('MONGODB_URI:', process.env.MONGODB_URI ? process.env.MONGODB_URI.replace(/\/\/.*@/, '//***:***@') : 'UNDEFINED');
+console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'SET (' + process.env.JWT_SECRET.length + ' chars)' : 'UNDEFINED');
+console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL || 'UNDEFINED (frontend var, ok if not on server)');
+console.log('REACT_APP_SOCKET_URL:', process.env.REACT_APP_SOCKET_URL || 'UNDEFINED (frontend var, ok if not on server)');
+console.log('SSL_KEY_PATH:', process.env.SSL_KEY_PATH || 'not set');
+console.log('SSL_CERT_PATH:', process.env.SSL_CERT_PATH || 'not set');
+console.log('STOCKFISH_THREADS:', process.env.STOCKFISH_THREADS || 'not set');
+console.log('AI_COACH_API_KEY:', process.env.AI_COACH_API_KEY ? 'SET' : 'not set');
+console.log('ZOOM_API_KEY:', process.env.ZOOM_API_KEY ? 'SET' : 'not set');
+console.log('ANALYSIS_QUEUE_BATCH_SIZE:', process.env.ANALYSIS_QUEUE_BATCH_SIZE || 'not set');
+console.log('LOG_LEVEL:', process.env.LOG_LEVEL || 'not set');
+console.log('ENABLE_ANALYSIS_CRON:', process.env.ENABLE_ANALYSIS_CRON || 'not set');
+console.log('================');
+
 const allowedOrigins = CLIENT_URL.split(',').map(s => s.trim());
+
+// Trust proxy for rate limiting behind Render/Railway/Nginx
+app.set('trust proxy', 1);
 
 // --- Security & parsing ---
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -164,10 +192,14 @@ mongoose
   .then(async () => {
     logger.info('MongoDB Connected');
     await hydrateBalanceCache();
+    const { warmHealthCache } = require('./controllers/puzzleController');
+    warmHealthCache().catch(() => {});
     startCronJobs();
     const { startQueueProcessor } = require('./services/analysisQueueService');
     startQueueProcessor();
     socketHandler.initialize();
+    startEventLoopMonitor();
+    startMemoryMonitor();
   })
   .catch((err) => {
     logger.error('MongoDB Connection Error', err.message);
@@ -175,38 +207,67 @@ mongoose
   });
 
 // --- Graceful shutdown ---
-const shutdown = (signal) => {
+let shuttingDown = false;
+
+const shutdown = async (signal) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
   logger.info(`${signal} received — shutting down gracefully`);
 
-  // Stop matchmaking and clock polling
+  // 1. Stop accepting new work
+  stopEventLoopMonitor();
+  stopMemoryMonitor();
+
+  // 2. Stop queue processor (await in-progress analysis)
+  const { stopQueueProcessor } = require('./services/analysisQueueService');
+  await stopQueueProcessor();
+
+  // 3. Stop matchmaking and clock polling
   const matchmaking = require('./services/matchmakingService');
   matchmaking.stop();
 
   const gameEngine = require('./services/gameEngine');
   gameEngine.stopClockTick();
 
-  // Quit Stockfish engine
+  // 4. Clear pending Stockfish tasks and terminate workers
   const { quit: quitEngine } = require('./services/stockfishEngine');
   quitEngine();
 
-  // Stop analysis queue processor
-  const { stopQueueProcessor } = require('./services/analysisQueueService');
-  stopQueueProcessor();
+  // 5. Close Socket.IO
+  try { io.close(); } catch {}
 
+  // 6. Disconnect MongoDB
+  try {
+    await mongoose.connection.close();
+    logger.info('MongoDB disconnected');
+  } catch (err) {
+    logger.warn('MongoDB disconnect:', err.message);
+  }
+
+  // 7. Close HTTP server
   server.close(() => {
-    mongoose.connection.close(false).then(() => {
-      logger.info('MongoDB connection closed');
-      process.exit(0);
-    });
+    logger.info('HTTP server closed');
+    logger.info('Shutdown complete');
+    process.exit(0);
   });
+
   setTimeout(() => {
-    logger.error('Forced shutdown after timeout');
+    logger.warn('Forced shutdown after timeout');
     process.exit(0);
   }, 10000).unref();
 };
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled Promise Rejection:', reason instanceof Error ? reason.message : reason);
+});
+
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught Exception:', err.message);
+  if (!shuttingDown) shutdown('UNCAUGHT_EXCEPTION');
+});
 
 server.listen(PORT, () => {
   logger.info(`Server running on port ${PORT} (${NODE_ENV})`);

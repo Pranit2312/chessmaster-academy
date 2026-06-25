@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
@@ -12,7 +12,7 @@ export default function GamePage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { emit, on, off } = useSocket();
+  const { emit, on, off, waitForConnection, connectionError } = useSocket();
   const isSpectator = new URLSearchParams(location.search).get('spectate') === '1';
 
   const [game, setGame] = useState(new Chess());
@@ -29,6 +29,18 @@ export default function GamePage() {
   const [rightClickedSquares, setRightClickedSquares] = useState({});
   const [optionSquares, setOptionSquares] = useState({});
   const [loadError, setLoadError] = useState(null);
+  const [loadTimedOut, setLoadTimedOut] = useState(false);
+  const [socketReady, setSocketReady] = useState(false);
+
+  const gameRef = useRef(game);
+  const movesRef = useRef(moves);
+  const gameOverRef = useRef(gameOver);
+  const playerColorRef = useRef(playerColor);
+
+  useEffect(() => { gameRef.current = game; }, [game]);
+  useEffect(() => { movesRef.current = moves; }, [moves]);
+  useEffect(() => { gameOverRef.current = gameOver; }, [gameOver]);
+  useEffect(() => { playerColorRef.current = playerColor; }, [playerColor]);
 
   const opponentName = opponent?.username || opponent?.user?.name || opponent?.name || 'Opponent';
   const opponentRating = opponent?.rating || opponent?.user?.chessRating || null;
@@ -41,40 +53,76 @@ export default function GamePage() {
       setOpponent(md.opponent);
     }
     loadGame();
+
+    const timeout = setTimeout(() => {
+      if (!gameData && !loadError) setLoadTimedOut(true);
+    }, 10000);
+    return () => clearTimeout(timeout);
   }, [gameId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!gameId) return;
-    emit('game:join', { gameId });
+    let cancelled = false;
 
-    const mf = (data) => handleOpponentMove(data);
-    const gover = (data) => handleGameOver(data);
-    const doffer = (data) => setDrawOffered(data);
-    const ddeclined = () => setDrawOffered(null);
-    const gerror = (data) => { console.error('Game error:', data?.message || data); };
-    const clockSync = (data) => { setClocks({ white: data.white, black: data.black }); };
-    const spectateSync = (data) => {
+    (async () => {
+      const ready = await waitForConnection(8000);
+      if (cancelled) return;
+      setSocketReady(ready);
+      if (ready) {
+        emit('game:join', { gameId });
+      }
+    })();
+
+    const mf = (data) => {
+      if (gameOverRef.current) return;
+      if (!data.move && !data.fen) return;
+      try {
+        if (data.fen) {
+          setGame(new Chess(data.fen));
+        } else {
+          const chess = new Chess(gameRef.current.fen());
+          chess.move(data.move.san);
+          setGame(chess);
+        }
+        if (data.move) setMoves(prev => [...prev, data.move]);
+        if (data.move?.playerColor) {
+          setClocks(prev => ({ ...prev, [data.move.playerColor === 'w' ? 'white' : 'black']: data.move.clock }));
+        }
+      } catch (e) { console.error(e); }
+    };
+
+    const clockSync = (data) => {
+      setClocks({ white: data.white, black: data.black });
+    };
+
+    on('game:move-made', mf);
+    on('game:clock-sync', clockSync);
+    on('game:over', (data) => {
+      setGameOver(true);
+      setResult(data);
+      setRatingChanges(data.ratingChanges);
+    });
+    on('game:draw-offered', (data) => setDrawOffered(data));
+    on('game:draw-declined', () => setDrawOffered(null));
+    on('game:aborted', () => navigate('/play'));
+    on('game:error', (data) => { console.error('Game error:', data?.message || data); });
+    on('spectate:synced', (data) => {
       if (!isSpectator) return;
       const chess = new Chess(data.fen);
       setGame(chess);
       setMoves(data.moves || []);
       setClocks(data.clocks || { white: 0, black: 0 });
-    };
-
-    on('game:move-made', mf);
-    on('game:over', gover);
-    on('game:draw-offered', doffer);
-    on('game:draw-declined', ddeclined);
-    on('game:aborted', () => navigate('/play'));
-    on('game:error', gerror);
-    on('game:clock-sync', clockSync);
-    on('spectate:synced', spectateSync);
+    });
 
     if (isSpectator) {
-      emit('spectate:join', { gameId });
+      (async () => {
+        const ready = await waitForConnection(5000);
+        if (!cancelled && ready) emit('spectate:join', { gameId });
+      })();
     }
 
     return () => {
+      cancelled = true;
       emit('game:leave', { gameId });
       off('game:move-made');
       off('game:over');
@@ -86,27 +134,18 @@ export default function GamePage() {
       off('spectate:synced');
       if (isSpectator) emit('spectate:leave', { gameId });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId]);
-
-  useEffect(() => {
-    if (!gameOver && gameData?.status === 'active') {
-      const interval = setInterval(() => {
-        setClocks(prev => {
-          const turn = game.turn();
-          if (turn === 'w') return { ...prev, white: Math.max(0, prev.white - 1000) };
-          if (turn === 'b') return { ...prev, black: Math.max(0, prev.black - 1000) };
-          return prev;
-        });
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [gameOver, gameData, game]);
+  }, [gameId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadGame() {
     try {
+      setLoadTimedOut(false);
+      setLoadError(null);
       const res = await gameAPI.getById(gameId);
       const g = res.data.game;
+      if (!g) {
+        setLoadError('Game not found');
+        return;
+      }
       setGameData(g);
       const chess = new Chess(g.fen);
       g.moves?.forEach(m => { try { chess.move(m.san); } catch {} });
@@ -117,46 +156,19 @@ export default function GamePage() {
       if (!isSpectator && !location.state?.matchData) {
         const p0 = g.players?.[0];
         const p1 = g.players?.[1];
-        if (String(p0?.user?._id) === String(user?._id)) { setPlayerColor(p0.color); setOpponent(p1); }
-        else if (String(p1?.user?._id) === String(user?._id)) { setPlayerColor(p1.color); setOpponent(p0); }
+        if (String(p0?.user?._id || p0?.userId) === String(user?._id)) { setPlayerColor(p0.color); setOpponent(p1); }
+        else if (String(p1?.user?._id || p1?.userId) === String(user?._id)) { setPlayerColor(p1.color); setOpponent(p0); }
       }
       if (g.status === 'completed') { setGameOver(true); setResult({ result: g.result, by: g.termination }); }
     } catch (e) {
-      console.error('loadGame error:', e);
+      console.error('LOAD_GAME_ERROR', e);
       setLoadError(e?.response?.data?.message || e.message || 'Failed to load game');
     }
   }
 
-  function handleOpponentMove(data) {
-    if (data.gameOver) return handleGameOver(data);
-    if (!data.move && !data.fen) return;
-    try {
-      if (data.fen) {
-        setGame(new Chess(data.fen));
-      } else {
-        const chess = new Chess(game.fen());
-        chess.move(data.move.san);
-        setGame(chess);
-      }
-      if (data.move) setMoves(prev => [...prev, data.move]);
-      if (data.move?.playerColor) {
-        setClocks(prev => ({ ...prev, [data.move.playerColor === 'w' ? 'white' : 'black']: data.move.clock }));
-      }
-    } catch (e) { console.error(e); }
-  }
-
-  function handleGameOver(data) {
-    setGameOver(true);
-    setResult(data);
-    setRatingChanges(data.ratingChanges);
-    if (data.by === 'timeout') {
-      setClocks(prev => ({ ...prev, [data.winner === 'white' ? 'black' : 'white']: 0 }));
-    }
-  }
-
   function onDrop(sourceSquare, targetSquare) {
-    if (gameOver || isSpectator) return false;
-    if (game.turn() !== (playerColor === 'white' ? 'w' : 'b')) return false;
+    if (gameOverRef.current || isSpectator) return false;
+    if (game.turn() !== (playerColorRef.current === 'white' ? 'w' : 'b')) return false;
 
     try {
       const chess = new Chess(game.fen());
@@ -232,18 +244,45 @@ export default function GamePage() {
     return `${m}:${String(s).padStart(2, '0')}`;
   };
 
+  if (!socketReady && connectionError) {
+    return (
+      <div className="game-page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
+        <h2>Connection Error</h2>
+        <p style={{ color: '#666', margin: '1rem 0' }}>{connectionError}</p>
+        <button className="game-action-btn secondary" onClick={() => navigate('/play')}>Back to Lobby</button>
+      </div>
+    );
+  }
+
   if (loadError) {
     return (
       <div className="game-page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
         <h2>Failed to load game</h2>
         <p style={{ color: '#666', margin: '1rem 0' }}>{loadError}</p>
-        <button className="game-action-btn primary" onClick={() => { setLoadError(null); setGameData(null); loadGame(); }}>Retry</button>
+        <button className="game-action-btn primary" onClick={() => { setLoadError(null); setGameData(null); setLoadTimedOut(false); loadGame(); }}>Retry</button>
         <button className="game-action-btn secondary" onClick={() => navigate('/play')} style={{ marginTop: '0.5rem' }}>Back to Lobby</button>
       </div>
     );
   }
 
-  if (!gameData) return <div className="game-page"><p>Loading game...</p></div>;
+  if (loadTimedOut) {
+    return (
+      <div className="game-page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
+        <h2>Game not found</h2>
+        <p style={{ color: '#666', margin: '1rem 0' }}>The game could not be loaded. The game may have expired or the ID is invalid.</p>
+        <button className="game-action-btn primary" onClick={() => { setLoadTimedOut(false); loadGame(); }}>Retry</button>
+        <button className="game-action-btn secondary" onClick={() => navigate('/play')} style={{ marginTop: '0.5rem' }}>Back to Lobby</button>
+      </div>
+    );
+  }
+
+  if (!gameData) return (
+    <div className="game-page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
+      <h2>Loading game...</h2>
+      <p style={{ color: '#666', margin: '1rem 0' }}>Please wait while we connect to the game server.</p>
+      <button className="game-action-btn secondary" onClick={() => navigate('/play')}>Back to Lobby</button>
+    </div>
+  );
 
   const myClock = playerColor === 'white' ? clocks.white : clocks.black;
   const oppClock = playerColor === 'white' ? clocks.black : clocks.white;

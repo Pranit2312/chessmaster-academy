@@ -1,16 +1,9 @@
 const Puzzle = require('../models/Puzzle');
 const PuzzleRush = require('../models/PuzzleRush');
 const PuzzleProfile = require('../models/PuzzleProfile');
-const puzzleApi = require('../services/puzzleApiService');
 const { Chess } = require('chess.js');
 
 const TIME_LIMITS = { '3min': 180, '5min': 300, 'survival': Infinity };
-
-const RUSH_FALLBACK = [
-  { _id: 'rush-fb-1', puzzleId: 'rush-fb-1', fen: 'r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4', solution: ['Nxe5'], themes: ['fork'], rating: 800, difficulty: 'easy', playerSide: 'w' },
-  { _id: 'rush-fb-2', puzzleId: 'rush-fb-2', fen: 'r1bq1rk1/pppp1ppp/2n5/2b1P3/2B5/5N2/PPPP1PPP/RNBQ1RK1 b - - 0 5', solution: ['Nxe5'], themes: ['checkmate'], rating: 600, difficulty: 'easy', playerSide: 'b' },
-  { _id: 'rush-fb-3', puzzleId: 'rush-fb-3', fen: 'rnbqkb1r/pppppppp/5n2/4P3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2', solution: ['Nd5'], themes: ['tactic'], rating: 400, difficulty: 'beginner', playerSide: 'b' },
-];
 
 exports.startRush = async (req, res) => {
   try {
@@ -194,28 +187,17 @@ exports.getHistory = async (req, res) => {
 
 async function getNextRushPuzzle(targetRating) {
   const range = 300;
-  const dbPuzzles = await Puzzle.aggregate([
+  const puzzles = await Puzzle.aggregate([
     {
       $match: {
         isActive: true,
-        rating: {
-          $gte: Math.max(200, targetRating - range),
-          $lte: Math.min(3500, targetRating + range)
-        }
+        rating: { $gte: Math.max(200, targetRating - range), $lte: Math.min(3500, targetRating + range) }
       }
     },
     { $sample: { size: 1 } },
     { $limit: 1 }
   ]);
-  if (dbPuzzles[0]) return dbPuzzles[0];
-
-  const filtered = RUSH_FALLBACK.filter(p =>
-    p.rating >= Math.max(200, targetRating - range) &&
-    p.rating <= Math.min(3500, targetRating + range)
-  );
-  if (filtered.length > 0) return filtered[Math.floor(Math.random() * filtered.length)];
-
-  return RUSH_FALLBACK[Math.floor(Math.random() * RUSH_FALLBACK.length)] || null;
+  return puzzles[0] || null;
 }
 
 function calculateTargetRating(session) {

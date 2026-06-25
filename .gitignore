@@ -122,3 +122,8 @@ dump/
 *.key
 *.p12
 *.crt
+
+server/data/
+*.csv
+tmp_*.json
+tmp_*.txt

@@ -8,7 +8,7 @@ const {
 const { analyzeFen } = require('./stockfishEngine');
 const logger = require('../utils/logger');
 
-const DEFAULT_DEPTH = parseInt(process.env.ANALYSIS_MAX_DEPTH, 10) || 10;
+const DEFAULT_DEPTH = parseInt(process.env.ANALYSIS_MAX_DEPTH, 10) || 6;
 const MAX_ANALYSIS_TIME = parseInt(process.env.MAX_ANALYSIS_TIME || '180000', 10);
 
 /**
@@ -25,10 +25,9 @@ async function analyzeGame(pgn, options = {}) {
   const verboseMoves = chess.history({ verbose: true });
   chess.reset();
 
-  // Cap depth for long games to keep analysis practical
   const depth = verboseMoves.length > 50
-    ? Math.min(requestedDepth, 8)
-    : Math.min(requestedDepth, 12);
+    ? Math.min(requestedDepth, 6)
+    : Math.min(requestedDepth, 10);
 
   const analyzedMoves = [];
   let whiteLossTotal = 0;
@@ -39,17 +38,18 @@ async function analyzeGame(pgn, options = {}) {
   let mistakes = 0;
   let blunders = 0;
 
+  let prevAnalysis = await analyzeFen(chess.fen(), depth);
   for (let i = 0; i < verboseMoves.length; i++) {
     if (Date.now() - startTime > MAX_ANALYSIS_TIME) {
       logger.warn(`Analysis timed out after ${MAX_ANALYSIS_TIME}ms at move ${i}/${verboseMoves.length}`);
       break;
     }
     const move = verboseMoves[i];
-    const fenBefore = chess.fen();
     const isWhiteMove = move.color === 'w';
-
-    const beforeAnalysis = await analyzeFen(fenBefore, depth);
-    const evalBefore = beforeAnalysis.evalCp;
+    const evalBefore = prevAnalysis.evalCp;
+    const bestMoveUci = prevAnalysis.bestMoveUci;
+    const bestMoveSan = prevAnalysis.bestMoveSan;
+    const pv = prevAnalysis.pv;
 
     chess.move(move);
     const fenAfter = chess.fen();
@@ -58,8 +58,7 @@ async function analyzeGame(pgn, options = {}) {
     const evalAfter = afterAnalysis.evalCp;
 
     const playedUci = `${move.from}${move.to}${move.promotion || ''}`;
-    const isBestMove = beforeAnalysis.bestMoveUci === playedUci;
-
+    const isBestMove = bestMoveUci === playedUci;
     const classification = isBestMove
       ? { isMistake: false, mistakeType: null, lossOfEval: 0 }
       : classifyMove(evalBefore, evalAfter, isWhiteMove);
@@ -86,16 +85,18 @@ async function analyzeGame(pgn, options = {}) {
       fen: fenAfter,
       evaluationBefore: evalBefore,
       evaluationAfter: evalAfter,
-      bestMove: beforeAnalysis.bestMoveSan,
-      bestMoveEval: beforeAnalysis.evalCp,
+      bestMove: bestMoveSan,
+      bestMoveEval: prevAnalysis.evalCp,
       isMistake: classification.isMistake,
       mistakeType: classification.mistakeType,
       lossOfEval: classification.lossOfEval,
-      depth: beforeAnalysis.depth,
-      topVariations: beforeAnalysis.pv.length
-        ? [{ variation: beforeAnalysis.pv.slice(0, 5), evaluation: beforeAnalysis.evalCp }]
+      depth: prevAnalysis.depth,
+      topVariations: pv.length
+        ? [{ variation: pv.slice(0, 5), evaluation: prevAnalysis.evalCp }]
         : []
     });
+
+    prevAnalysis = afterAnalysis;
   }
 
   const parsed = parsePgn(pgn);
