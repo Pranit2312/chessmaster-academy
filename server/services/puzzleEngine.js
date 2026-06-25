@@ -41,17 +41,25 @@ async function getOrCreateProfile(userId) {
 async function recordSolve(userId, puzzleObj, correct, timeMs) {
   const profile = await getOrCreateProfile(userId);
 
-  const ratingUpdate = calculatePuzzleRatingUpdate(
-    profile.puzzleRating,
-    puzzleObj.rating,
-    correct
+  // Only apply rating change on first attempt per puzzle
+  const alreadyAttempted = profile.puzzleHistory.some(
+    h => h.puzzleId === puzzleObj.puzzleId || (puzzleObj._id && h.puzzle?.toString() === puzzleObj._id.toString())
   );
 
-  profile.puzzleRating = Math.max(200, Math.min(3500, ratingUpdate.newUserRating));
+  let ratingUpdate = null;
+  if (!alreadyAttempted) {
+    ratingUpdate = calculatePuzzleRatingUpdate(
+      profile.puzzleRating,
+      puzzleObj.rating,
+      correct
+    );
+    profile.puzzleRating = Math.max(200, Math.min(3500, ratingUpdate.newUserRating));
+  }
+
   profile.recordSolve(puzzleObj, correct, timeMs);
   await profile.save();
 
-  if (puzzleObj._id) {
+  if (puzzleObj._id && !alreadyAttempted) {
     await Puzzle.updateOne(
       { _id: puzzleObj._id },
       { $inc: { solvedCount: correct ? 1 : 0 } }

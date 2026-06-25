@@ -65,6 +65,7 @@ const PuzzlesPage = () => {
   const [showSolution, setShowSolution] = useState(false);
   const [hintLevel, setHintLevel] = useState(0);
   const [hintData, setHintData] = useState(null);
+  const [boardWidth, setBoardWidth] = useState(Math.min(480, window.innerWidth - 420 < 480 ? Math.max(320, window.innerWidth - 80) : 480));
   const [profile, setProfile] = useState(null);
   const [globalStats, setGlobalStats] = useState(null);
   const [newPuzzleTrigger, setNewPuzzleTrigger] = useState(0);
@@ -84,6 +85,18 @@ const PuzzlesPage = () => {
     puzzleAPI.getProfile()
       .then(res => setProfile(res.data.profile))
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      if (w > 1024) setBoardWidth(480);
+      else if (w > 768) setBoardWidth(400);
+      else setBoardWidth(Math.max(280, Math.min(w - 40, 380)));
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const loadDaily = useCallback(async () => {
@@ -236,7 +249,7 @@ const PuzzlesPage = () => {
   }, [currentPuzzle, solved]);
 
   const getHint = useCallback(async () => {
-    if (!currentPuzzle) return;
+    if (!currentPuzzle || solved) return;
     const nextLevel = (hintLevelRef.current + 1) % 4;
     hintLevelRef.current = nextLevel;
     setHintLevel(nextLevel);
@@ -275,7 +288,7 @@ const PuzzlesPage = () => {
       setError('Unable to load hint. Please try again.');
       setHintData({ level: nextLevel, san: '', from: '', to: '', text: 'Analyze the position' });
     }
-  }, [currentPuzzle]);
+  }, [currentPuzzle, solved]);
 
   const loadRandom = useCallback(async () => {
     setLoading(true);
@@ -309,7 +322,6 @@ const PuzzlesPage = () => {
   }, []);
 
   const nextPuzzle = useCallback(async () => {
-    setSolved(false);
     setResult(null);
     setShowSolution(false);
     hintLevelRef.current = 0;
@@ -320,6 +332,7 @@ const PuzzlesPage = () => {
       if (idx >= 0 && idx < themePuzzles.length - 1) {
         const next = themePuzzles[idx + 1];
         if (validatePuzzleOnClient(next)) {
+          setSolved(false);
           setCurrentPuzzle(next);
           setPuzzleSource('themes');
           return;
@@ -402,7 +415,7 @@ const PuzzlesPage = () => {
               solution={currentPuzzle.solution}
               onMove={handleUserMove}
               onComplete={handlePuzzleComplete}
-              boardWidth={480}
+              boardWidth={boardWidth}
               showSolution={showSolution}
               newPuzzleTrigger={newPuzzleTrigger}
               hintData={hintData}
@@ -454,6 +467,16 @@ const PuzzlesPage = () => {
                   <span>Streak: {result.profile?.currentStreak || 0}</span>
                   <span>Solved: {result.profile?.solvedCount || 0}</span>
                   <span>Accuracy: {result.profile?.accuracy || 0}%</span>
+                </div>
+              </div>
+            )}
+
+            {result?.correct && puzzleSource === 'daily' && (
+              <div className="daily-solved-banner">
+                <span className="daily-solved-icon">&#127942;</span>
+                <div className="daily-solved-text">
+                  <span className="daily-solved-title">Today's puzzle you have solved</span>
+                  <span className="daily-solved-sub">Come back tomorrow for a new challenge</span>
                 </div>
               </div>
             )}

@@ -54,7 +54,7 @@ const BookingCard = ({ booking, isCoach, onCancel, onComplete, onReview }) => {
       </div>
 
       {/* JOIN MEETING */}
-      {meetingLink && (booking.paymentStatus === 'completed' || booking.paymentStatus === 'paid') && (
+      {meetingLink && booking.sessionStatus === 'scheduled' && (booking.paymentStatus === 'completed' || booking.paymentStatus === 'paid') && (
         <div className="meeting-section">
           <a
             href={meetingLink}

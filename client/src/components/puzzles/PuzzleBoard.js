@@ -23,8 +23,19 @@ const PuzzleBoard = ({
   newPuzzleTrigger,
   hintData
 }) => {
-  const fen = puzzle?.fen ?? fenProp;
-  const solution = puzzle?.solution ?? solutionProp;
+  // Advance one move so the user plays the winning side (opponent of the FEN's side-to-move)
+  const { fen, solution } = useMemo(() => {
+    const rawFen = puzzle?.fen ?? fenProp;
+    const rawSolution = puzzle?.solution ?? solutionProp;
+    if (rawSolution.length > 1) {
+      try {
+        const g = new Chess(rawFen);
+        g.move(rawSolution[0], { sloppy: true });
+        return { fen: g.fen(), solution: rawSolution.slice(1) };
+      } catch {}
+    }
+    return { fen: rawFen, solution: rawSolution };
+  }, [puzzle, fenProp, solutionProp]);
 
   const [moveIndex, setMoveIndex] = useState(0);
   const [moveHistory, setMoveHistory] = useState([]);
