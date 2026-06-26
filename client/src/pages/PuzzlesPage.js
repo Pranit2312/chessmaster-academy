@@ -6,7 +6,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/PuzzlesPage.css';
 
 const DEBUG = true;
-const TABS = ['daily', 'themes', 'stats'];
+const TABS = ['daily', 'practice', 'themes', 'stats'];
 
 function log(...args) {
   if (DEBUG) console.log('[PuzzlePage]', ...args);
@@ -173,19 +173,24 @@ const PuzzlesPage = () => {
     fetchingRef.current.stats = false;
   }, []);
 
-  const initialLoadRef = useRef({ daily: false });
+  const initialLoadRef = useRef({ daily: false, practice: false });
   useEffect(() => {
     if (tab === 'daily') {
       if (!initialLoadRef.current.daily) {
         initialLoadRef.current.daily = true;
         loadDaily();
       }
+    } else if (tab === 'practice') {
+      if (!initialLoadRef.current.practice) {
+        initialLoadRef.current.practice = true;
+        loadRandom();
+      }
     } else if (tab === 'themes') {
       loadThemes();
     } else if (tab === 'stats') {
       loadStats();
     }
-  }, [tab, loadDaily, loadStats, loadThemes]);
+  }, [tab, loadDaily, loadRandom, loadStats, loadThemes]);
 
   useEffect(() => {
     if (selectedTheme && tab === 'themes') loadThemePuzzles(selectedTheme, themePage);
@@ -391,8 +396,35 @@ const PuzzlesPage = () => {
   return (
     <div className="puzzles-page">
       <div className="puzzles-header">
-        <h1>Puzzles</h1>
-        <p>Train tactics with puzzles from the Lichess database</p>
+        <div className="puzzles-header-top">
+          <div>
+            <h1>Puzzles</h1>
+            <p>Train tactics with puzzles from the Lichess database</p>
+          </div>
+          {profile && (
+            <div className="puzzles-header-stats">
+              <div className="phs-item">
+                <span className="phs-label">Rating</span>
+                <span className="phs-value">{profile.puzzleRating}</span>
+              </div>
+              <div className="phs-divider" />
+              <div className="phs-item">
+                <span className="phs-label">Streak</span>
+                <span className="phs-value">{profile.currentStreak || 0}</span>
+              </div>
+              <div className="phs-divider" />
+              <div className="phs-item">
+                <span className="phs-label">Solved</span>
+                <span className="phs-value">{profile.solvedCount || 0}</span>
+              </div>
+              <div className="phs-divider" />
+              <div className="phs-item">
+                <span className="phs-label">Accuracy</span>
+                <span className="phs-value">{profile.accuracy || 0}%</span>
+              </div>
+            </div>
+          )}
+        </div>
         <div className="puzzles-tabs">
           {TABS.map(t => (
             <button key={t} className={`btn ${tab === t ? 'btn-primary' : 'btn-outline'}`}
@@ -405,7 +437,7 @@ const PuzzlesPage = () => {
 
       {error && <div className="alert alert-error" onClick={() => setError(null)}>{error}</div>}
 
-      {tab === 'daily' && currentPuzzle && (
+      {(tab === 'daily' || tab === 'practice') && currentPuzzle && (
         <div className="puzzle-solve-view">
           <div className="puzzle-main">
             <PuzzleBoard
@@ -432,14 +464,36 @@ const PuzzlesPage = () => {
                 <span className="prb-value">{profile?.puzzleRating || 1200}</span>
               </div>
               <div className="puzzle-theme-tags">
-                {(currentPuzzle.themes || []).slice(0, 3).map(t => (
-                  <span key={t} className="theme-tag">{t}</span>
-                ))}
+                {(currentPuzzle.themes || []).length > 0 ? (
+                  (currentPuzzle.themes || []).slice(0, 3).map(t => (
+                    <span key={t} className="theme-tag">{t}</span>
+                  ))
+                ) : (
+                  <span className="theme-tag">tactic</span>
+                )}
               </div>
               {solved && (
                 <span className="puzzle-side-badge solved">Solved</span>
               )}
             </div>
+            {!solved && !showSolution && (
+              <div className="puzzle-info-card">
+                <div className="pic-row">
+                  <span className="pic-label">Moves</span>
+                  <span className="pic-value">{currentPuzzle.solution?.length || 0}</span>
+                </div>
+                <div className="pic-row">
+                  <span className="pic-label">Difficulty</span>
+                  <span className={`pic-value pic-diff ${(currentPuzzle.rating || 0) < 1200 ? 'easy' : (currentPuzzle.rating || 0) < 1600 ? 'medium' : (currentPuzzle.rating || 0) < 2000 ? 'hard' : 'expert'}`}>
+                    {(currentPuzzle.rating || 0) < 1200 ? 'Easy' : (currentPuzzle.rating || 0) < 1600 ? 'Medium' : (currentPuzzle.rating || 0) < 2000 ? 'Hard' : 'Expert'}
+                  </span>
+                </div>
+                <div className="pic-row">
+                  <span className="pic-label">Side</span>
+                  <span className="pic-value">{currentPuzzle.fen?.split(' ')[1] === 'w' ? 'White' : 'Black'}</span>
+                </div>
+              </div>
+            )}
 
             {!solved && !showSolution && (
               <div className="puzzle-actions">
@@ -481,9 +535,15 @@ const PuzzlesPage = () => {
               </div>
             )}
 
-            {(result?.correct || solved) && (
+            {tab === 'practice' && (result?.correct || solved) && (
               <button className="btn btn-primary next-btn" onClick={nextPuzzle}>
                 Next Puzzle &rarr;
+              </button>
+            )}
+
+            {tab === 'daily' && (result?.correct || solved) && (
+              <button className="btn btn-primary next-btn" onClick={() => setTab('practice')}>
+                Practice More Puzzles &rarr;
               </button>
             )}
 

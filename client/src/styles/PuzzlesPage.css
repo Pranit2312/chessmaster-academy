@@ -6,6 +6,10 @@
   max-width: var(--container-max);
   margin: 0 auto;
   padding: var(--8) var(--6);
+  min-height: calc(100vh - 80px);
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(245, 158, 11, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 100% 100%, rgba(217, 119, 6, 0.06) 0%, transparent 60%);
 }
 
 /* ============================================
@@ -16,18 +20,64 @@
   margin-bottom: var(--8);
 }
 
-.puzzles-header h1 {
+.puzzles-header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--6);
+  margin-bottom: var(--5);
+  flex-wrap: wrap;
+}
+
+.puzzles-header-top h1 {
   font-size: var(--text-3xl);
   font-weight: var(--weight-bold);
   color: var(--text-primary);
   letter-spacing: var(--tracking-tight);
-  margin-bottom: var(--2);
+  margin-bottom: var(--1);
 }
 
-.puzzles-header p {
+.puzzles-header-top p {
   color: var(--text-secondary);
   font-size: var(--text-sm);
-  margin-bottom: var(--5);
+}
+
+.puzzles-header-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--4);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  padding: var(--3) var(--5);
+  box-shadow: var(--shadow-sm);
+}
+
+.phs-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.phs-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+}
+
+.phs-value {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.phs-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border-light);
 }
 
 .puzzles-tabs {
@@ -77,11 +127,25 @@
 .puzzle-main {
   display: flex;
   justify-content: center;
-  background: var(--surface-primary);
+  background:
+    linear-gradient(135deg, var(--surface-primary) 0%, rgba(245, 158, 11, 0.04) 100%);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-2xl);
   padding: var(--6);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow), 0 0 0 1px rgba(245, 158, 11, 0.08);
+  position: relative;
+}
+
+.puzzle-main::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: var(--radius-2xl);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), transparent 50%);
+  pointer-events: none;
 }
 
 .puzzle-sidebar {
@@ -172,6 +236,46 @@
   font-weight: var(--weight-medium);
   color: var(--text-tertiary);
 }
+
+/* ============================================
+   PUZZLE INFO CARD
+   ============================================ */
+
+.puzzle-info-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  padding: var(--4) var(--5);
+}
+
+.pic-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--2) 0;
+}
+
+.pic-row + .pic-row {
+  border-top: 1px solid var(--border-light);
+}
+
+.pic-label {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pic-value {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.pic-diff.easy   { color: var(--success-600); }
+.pic-diff.medium { color: var(--warning-600); }
+.pic-diff.hard   { color: var(--danger-500); }
+.pic-diff.expert { color: #dc2626; }
 
 /* ============================================
    PUZZLE ACTIONS
@@ -288,12 +392,12 @@
   display: flex;
   align-items: center;
   gap: var(--3);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #d97706 0%, #b45309 50%, #92400e 100%);
   border-radius: var(--radius-xl);
   padding: var(--4) var(--5);
   margin: var(--4) 0;
-  color: #fff;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  color: #fafaf9;
+  box-shadow: 0 4px 15px rgba(217, 119, 6, 0.4);
   animation: dailyBannerIn 0.5s ease-out;
 }
 
@@ -701,7 +805,15 @@
   .puzzle-main {
     padding: var(--4);
   }
-  .puzzles-header h1 {
+  .puzzles-header-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .puzzles-header-stats {
+    justify-content: space-around;
+    padding: var(--2) var(--3);
+  }
+  .puzzles-header-top h1 {
     font-size: var(--text-2xl);
   }
   .puzzles-page {

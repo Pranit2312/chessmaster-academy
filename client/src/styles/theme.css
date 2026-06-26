@@ -6,66 +6,66 @@
 :root {
   /* ===== COLORS ===== */
 
-  /* Brand */
-  --brand-50: #eff6ff;
-  --brand-100: #dbeafe;
-  --brand-200: #bfdbfe;
-  --brand-300: #93c5fd;
-  --brand-400: #60a5fa;
-  --brand-500: #3b82f6;
-  --brand-600: #2563eb;
-  --brand-700: #1d4ed8;
-  --brand-800: #1e40af;
-  --brand-900: #1e3a8a;
+  /* Brand — Gold/Amber */
+  --brand-50: #fffbeb;
+  --brand-100: #fef3c7;
+  --brand-200: #fde68a;
+  --brand-300: #fcd34d;
+  --brand-400: #fbbf24;
+  --brand-500: #f59e0b;
+  --brand-600: #d97706;
+  --brand-700: #b45309;
+  --brand-800: #92400e;
+  --brand-900: #78350f;
 
-  /* Neutral */
-  --neutral-50: #f8fafc;
-  --neutral-100: #f1f5f9;
-  --neutral-200: #e2e8f0;
-  --neutral-300: #cbd5e1;
-  --neutral-400: #94a3b8;
-  --neutral-500: #64748b;
-  --neutral-600: #475569;
-  --neutral-700: #334155;
-  --neutral-800: #1e293b;
-  --neutral-900: #0f172a;
-  --neutral-950: #020617;
+  /* Neutral — Warm Dark Charcoal */
+  --neutral-50: #fafaf9;
+  --neutral-100: #f5f5f4;
+  --neutral-200: #e7e5e4;
+  --neutral-300: #d6d3d1;
+  --neutral-400: #a8a29e;
+  --neutral-500: #78716c;
+  --neutral-600: #57534e;
+  --neutral-700: #44403c;
+  --neutral-800: #292524;
+  --neutral-900: #1c1917;
+  --neutral-950: #0c0a09;
 
   /* Semantic */
-  --success-50: #ecfdf5;
-  --success-500: #10b981;
-  --success-600: #059669;
-  --success-700: #047857;
+  --success-50: #052e16;
+  --success-500: #22c55e;
+  --success-600: #16a34a;
+  --success-700: #15803d;
 
-  --warning-50: #fffbeb;
+  --warning-50: #451a03;
   --warning-500: #f59e0b;
   --warning-600: #d97706;
 
-  --danger-50: #fef2f2;
+  --danger-50: #450a0a;
   --danger-500: #ef4444;
   --danger-600: #dc2626;
   --danger-700: #b91c1c;
 
-  --info-50: #eff6ff;
-  --info-500: #3b82f6;
+  --info-50: #052e16;
+  --info-500: #22c55e;
 
-  /* Surfaces */
-  --surface-primary: #ffffff;
-  --surface-secondary: var(--neutral-50);
-  --surface-tertiary: var(--neutral-100);
-  --surface-brand: var(--brand-600);
-  --surface-brand-hover: var(--brand-700);
+  /* Surfaces — Rich Dark */
+  --surface-primary: #1c1917;
+  --surface-secondary: #292524;
+  --surface-tertiary: #44403c;
+  --surface-brand: var(--brand-500);
+  --surface-brand-hover: var(--brand-600);
 
-  /* Text */
-  --text-primary: var(--neutral-900);
-  --text-secondary: var(--neutral-500);
-  --text-tertiary: var(--neutral-400);
-  --text-on-brand: #ffffff;
-  --text-inverse: #ffffff;
+  /* Text — Light on Dark */
+  --text-primary: #fafaf9;
+  --text-secondary: #a8a29e;
+  --text-tertiary: #78716c;
+  --text-on-brand: #1c1917;
+  --text-inverse: #1c1917;
 
   /* Borders */
-  --border-light: var(--neutral-200);
-  --border-medium: var(--neutral-300);
+  --border-light: #44403c;
+  --border-medium: #57534e;
 
   /* ===== TYPOGRAPHY ===== */
 
@@ -126,16 +126,16 @@
 
   /* ===== SHADOWS ===== */
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.12);
-  --shadow-2xl: 0 24px 60px rgba(0, 0, 0, 0.15);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.6);
+  --shadow-2xl: 0 24px 60px rgba(0, 0, 0, 0.7);
 
   /* Brand shadow */
-  --shadow-brand: 0 4px 14px rgba(37, 99, 235, 0.3);
+  --shadow-brand: 0 4px 14px rgba(245, 158, 11, 0.35);
 
   /* ===== TRANSITIONS ===== */
 
@@ -160,22 +160,15 @@
   --z-toast: 1200;
 }
 
-/* ===== DARK THEME ===== */
+/* ===== DARK THEME (deeper variant) ===== */
 
 [data-theme='dark'] {
-  --surface-primary: var(--neutral-900);
-  --surface-secondary: var(--neutral-800);
-  --surface-tertiary: var(--neutral-700);
+  --surface-primary: var(--neutral-950);
+  --surface-secondary: var(--neutral-900);
+  --surface-tertiary: var(--neutral-800);
   --text-primary: var(--neutral-50);
   --text-secondary: var(--neutral-300);
   --text-tertiary: var(--neutral-400);
   --border-light: var(--neutral-700);
   --border-medium: var(--neutral-600);
-
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.6);
 }
