@@ -10,20 +10,29 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(37, 99, 235, 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 20% 80%, rgba(6, 182, 212, 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 50% at 80% 60%, rgba(37, 99, 235, 0.03) 0%, transparent 50%);
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(37, 99, 235, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 20% 80%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 50% at 80% 60%, rgba(37, 99, 235, 0.05) 0%, transparent 50%);
 }
 
 .hero-bg-grid {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+    linear-gradient(rgba(37, 99, 235, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.025) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse 60% 50% at 50% 20%, black 30%, transparent 70%);
   -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 20%, black 30%, transparent 70%);
+}
+
+.bg-particle-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .hero-bg-waves {
@@ -32,7 +41,7 @@
   left: 0;
   right: 0;
   height: 320px;
-  z-index: 1;
+  z-index: 2;
 }
 
 .wave-svg {
@@ -60,7 +69,7 @@
   width: 200%;
   height: 1px;
   left: -50%;
-  background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.06), rgba(6, 182, 212, 0.08), rgba(37, 99, 235, 0.06), transparent);
+  background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.1), rgba(6, 182, 212, 0.12), rgba(37, 99, 235, 0.1), transparent);
   animation: beamSweep 12s linear infinite;
 }
 
@@ -80,77 +89,91 @@
 .hero-floating-pieces {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 3;
 }
 
 .floating-piece {
   position: absolute;
-  opacity: 0.15;
-  color: var(--brand-300);
+  opacity: 0.45;
+  color: var(--brand-200);
   animation: floatDrift 20s ease-in-out infinite;
-  filter: blur(0.3px) drop-shadow(0 0 8px rgba(37, 99, 235, 0.1));
-}
-
-.floating-piece svg {
-  width: 100%;
-  height: 100%;
+  filter: drop-shadow(0 0 20px rgba(37, 99, 235, 0.35)) drop-shadow(0 0 40px rgba(37, 99, 235, 0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  will-change: transform, opacity;
 }
 
 .fp-queen {
-  top: 15%;
-  left: 8%;
+  top: 12%;
+  left: 6%;
+  width: 80px;
+  height: 80px;
   animation-duration: 28s;
   animation-delay: 0s;
 }
 
 .fp-rook {
-  top: 55%;
-  right: 12%;
+  top: 58%;
+  right: 8%;
+  width: 60px;
+  height: 60px;
   animation-duration: 24s;
   animation-delay: -6s;
 }
 
 .fp-knight {
-  bottom: 25%;
-  left: 20%;
+  bottom: 20%;
+  left: 18%;
+  width: 65px;
+  height: 65px;
   animation-duration: 22s;
   animation-delay: -12s;
 }
 
 .fp-bishop {
-  top: 35%;
-  right: 25%;
+  top: 32%;
+  right: 22%;
+  width: 55px;
+  height: 55px;
   animation-duration: 26s;
   animation-delay: -4s;
 }
 
 .fp-pawn-1 {
-  top: 70%;
-  left: 5%;
+  top: 72%;
+  left: 4%;
+  width: 45px;
+  height: 45px;
   animation-duration: 20s;
   animation-delay: -8s;
 }
 
 .fp-pawn-2 {
-  top: 20%;
-  right: 5%;
+  top: 18%;
+  right: 4%;
+  width: 38px;
+  height: 38px;
   animation-duration: 30s;
   animation-delay: -15s;
 }
 
 .fp-board {
-  bottom: 40%;
-  left: 50%;
+  bottom: 35%;
+  left: 48%;
   width: 120px;
-  opacity: 0.06;
+  height: 120px;
+  opacity: 0.08;
   animation-duration: 35s;
   animation-delay: -10s;
 }
 
 .fp-knight-2 {
-  top: 50%;
-  left: 55%;
-  opacity: 0.1;
+  top: 48%;
+  left: 58%;
+  width: 50px;
+  height: 50px;
+  opacity: 0.12;
   animation-duration: 25s;
   animation-delay: -20s;
 }

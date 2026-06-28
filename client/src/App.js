@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { ToastProvider } from './context/ToastContext';
@@ -10,7 +11,7 @@ import './styles/theme.css';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import StudentDashboard from './pages/StudentDashboard';
+import StudentDashboard from './pages/StudentDashboardNew';
 import CoachDashboard from './pages/CoachDashboard';
 import CoachProfile from './pages/CoachProfile';
 import BrowseCoaches from './pages/BrowseCoaches';
@@ -44,6 +45,7 @@ import PuzzleRushPage from './pages/PuzzleRushPage';
 import CoachPuzzleCreator from './pages/CoachPuzzleCreator';
 
 import Footer from './components/Footer';
+import AnimatedBackground from './components/hero/AnimatedBackground';
 
 // AI Pages (Phase 2)
 import AiPracticePage from './pages/AiPracticePage';
@@ -112,8 +114,21 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
+const pageVariants = {
+  initial: { opacity: 0, y: 12 },
+  enter: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } },
+  exit: { opacity: 0, y: -12, transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] } },
+};
+
+const PageTransition = ({ children }) => (
+  <motion.div variants={pageVariants} initial="initial" animate="enter" exit="exit">
+    {children}
+  </motion.div>
+);
+
 function AppContent() {
   const [theme] = useState(localStorage.getItem('theme') || 'dark');
+  const location = useLocation();
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -122,8 +137,10 @@ function AppContent() {
 
   return (
     <div className="App">
+      <AnimatedBackground />
       <Navbar />
-      <Routes>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
         {/* Public Routes */}
         <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
         <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
@@ -485,6 +502,7 @@ function AppContent() {
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+      </AnimatePresence>
       <Footer />
     </div>
   );

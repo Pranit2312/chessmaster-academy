@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ChessKingHero, AnimatedBackground, ParticleField } from '../components/hero';
+import { ChessKingHero } from '../components/hero';
 import '../styles/LandingPage.css';
 
 const AnimatedCounter = ({ target, suffix = '' }) => {
@@ -26,9 +26,6 @@ const AnimatedCounter = ({ target, suffix = '' }) => {
 const LandingPage = () => {
   return (
     <div className="landing-page">
-      <AnimatedBackground />
-      <ParticleField count={50} color="37, 99, 235" />
-
       <ChessKingHero
         title="Master Chess with AI-Powered Coaching"
         subtitle="Connect with FIDE-rated coaches, solve thousands of tactical puzzles, and dominate the board with personalized training."

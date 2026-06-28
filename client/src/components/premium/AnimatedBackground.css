@@ -1,0 +1,222 @@
+.animated-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #050816;
+  overflow: hidden;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.background-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(37, 99, 235, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.02) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: gridScroll 30s linear infinite;
+}
+
+@keyframes gridScroll {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(60px, 60px);
+  }
+}
+
+.particles-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.particle {
+  position: absolute;
+  background: rgba(96, 165, 250, 0.6);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.8);
+}
+
+.chess-silhouettes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.silhouette-piece {
+  position: absolute;
+  font-size: 250px;
+  color: #2563EB;
+  filter: blur(3px);
+  opacity: 0.03;
+}
+
+.piece-king {
+  top: 5%;
+  right: 10%;
+}
+
+.piece-queen {
+  bottom: 10%;
+  left: 5%;
+  font-size: 200px;
+}
+
+.piece-knight {
+  top: 40%;
+  right: 5%;
+  font-size: 180px;
+}
+
+.piece-bishop {
+  bottom: 30%;
+  right: 25%;
+  font-size: 150px;
+}
+
+.glow-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+.orb-blue {
+  width: 500px;
+  height: 500px;
+  background: rgba(37, 99, 235, 0.25);
+  top: -150px;
+  right: -150px;
+}
+
+.orb-green {
+  width: 400px;
+  height: 400px;
+  background: rgba(34, 197, 94, 0.2);
+  bottom: -100px;
+  left: -100px;
+}
+
+.orb-orange {
+  width: 350px;
+  height: 350px;
+  background: rgba(245, 158, 11, 0.15);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.wave-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.wave {
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(ellipse at center, rgba(37, 99, 235, 0.05) 0%, transparent 70%);
+  top: -50%;
+  left: -50%;
+}
+
+.wave-1 {
+  animation: waveMove 15s ease-in-out infinite;
+}
+
+.wave-2 {
+  animation: waveMove 20s ease-in-out infinite reverse;
+}
+
+@keyframes waveMove {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-50px, -50px) scale(1.1);
+  }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .silhouette-piece {
+    font-size: 180px;
+  }
+  
+  .piece-queen {
+    font-size: 150px;
+  }
+  
+  .piece-knight {
+    font-size: 130px;
+  }
+  
+  .piece-bishop {
+    font-size: 100px;
+  }
+  
+  .orb-blue {
+    width: 350px;
+    height: 350px;
+  }
+  
+  .orb-green {
+    width: 300px;
+    height: 300px;
+  }
+  
+  .orb-orange {
+    width: 250px;
+    height: 250px;
+  }
+}
+
+@media (max-width: 768px) {
+  .silhouette-piece {
+    font-size: 120px;
+  }
+  
+  .piece-queen {
+    font-size: 100px;
+  }
+  
+  .piece-knight {
+    font-size: 80px;
+  }
+  
+  .piece-bishop {
+    font-size: 60px;
+  }
+  
+  .orb-blue {
+    width: 250px;
+    height: 250px;
+  }
+  
+  .orb-green {
+    width: 200px;
+    height: 200px;
+  }
+  
+  .orb-orange {
+    width: 180px;
+    height: 180px;
+  }
+}

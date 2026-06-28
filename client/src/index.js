@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/index.css';
+import './styles/modern-theme.css';
+import './styles/glassmorphism.css';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 
