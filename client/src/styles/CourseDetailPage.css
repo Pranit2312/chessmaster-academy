@@ -6,7 +6,7 @@
 .course-hero {
   position: relative;
   height: 400px;
-  background: #111827;
+  background: var(--neutral-800);
   overflow: hidden;
 }
 
@@ -66,17 +66,18 @@
 }
 
 .course-main {
-  background-color: var(--surface-primary);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--glass-border);
 }
 
 .tabs {
   display: flex;
   border-bottom: 1px solid var(--border-light);
-  background-color: var(--surface-primary);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .tab {
@@ -91,9 +92,8 @@
 }
 
 .tab.active {
-  color: var(--brand-600);
-  border-bottom-color: var(--brand-600);
-  background-color: var(--surface-primary);
+  color: var(--brand-400);
+  border-bottom-color: var(--brand-500);
 }
 
 .tab-content {
@@ -120,8 +120,8 @@
   display: flex;
   justify-content: space-between;
   padding: 1rem;
-  background-color: var(--surface-secondary);
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-xl);
   border: 1px solid var(--border-light);
   color: var(--text-secondary);
 }
@@ -133,11 +133,12 @@
 }
 
 .course-card-sidebar {
-  background-color: var(--surface-primary);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
   padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-  border: 1px solid var(--border-light);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--glass-border);
 }
 
 .pricing-section {
@@ -181,7 +182,7 @@
     grid-template-columns: 1fr;
     margin-top: 2rem;
   }
-  
+
   .course-sidebar {
     position: static;
   }

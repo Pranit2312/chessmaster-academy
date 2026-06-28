@@ -47,7 +47,26 @@ function validatePuzzleOnClient(puzzle) {
         }
       }
     }
-    return true;
+    if (chess2.isCheckmate()) return true;
+    if (chess2.isStalemate()) return false;
+    if (chess2.isDraw()) return false;
+    const material = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+    let whiteScore = 0, blackScore = 0;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const sq = 'abcdefgh'[c] + (r + 1);
+        const p = chess2.get(sq);
+        if (p) {
+          if (p.color === 'w') whiteScore += material[p.type] || 0;
+          else blackScore += material[p.type] || 0;
+        }
+      }
+    }
+    const sideWhoSolved = move.color;
+    const solvedSideScore = sideWhoSolved === 'w' ? whiteScore : blackScore;
+    const opponentScore = sideWhoSolved === 'w' ? blackScore : whiteScore;
+    if (solvedSideScore >= opponentScore + 3) return true;
+    return false;
   } catch {
     return false;
   }
@@ -173,18 +192,48 @@ const PuzzlesPage = () => {
     fetchingRef.current.stats = false;
   }, []);
 
-  const initialLoadRef = useRef({ daily: false, practice: false });
+  const loadRandom = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      for (let i = 0; i < 3; i++) {
+        const res = await puzzleAPI.getRandom();
+        const p = res.data.puzzle;
+        if (p && validatePuzzleOnClient(p)) {
+          const side = getSideFromFen(p.fen);
+          log(`Loaded random puzzle ${p.puzzleId}: FEN turn=${side}, solution[0]=${p.solution?.[0]}, length=${p.solution?.length}`);
+          setCurrentPuzzle(p);
+          setPuzzleSource('random');
+          setSolved(false);
+          setResult(null);
+          setShowSolution(false);
+          hintLevelRef.current = 0;
+          setHintLevel(0);
+          setHintData(null);
+          setError(null);
+          setLoading(false);
+          return;
+        }
+      }
+      setError('No valid puzzles found. Try again.');
+    } catch (err) {
+      log('loadRandom error:', err?.message);
+      setError(err?.response?.data?.message || err?.message || 'Failed to load puzzle');
+    }
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
+    setResult(null);
+    setShowSolution(false);
+    setSelectedTheme(null);
+    hintLevelRef.current = 0;
+    setHintLevel(0);
+    setHintData(null);
     if (tab === 'daily') {
-      if (!initialLoadRef.current.daily) {
-        initialLoadRef.current.daily = true;
-        loadDaily();
-      }
+      loadDaily();
     } else if (tab === 'practice') {
-      if (!initialLoadRef.current.practice) {
-        initialLoadRef.current.practice = true;
-        loadRandom();
-      }
+      loadRandom();
     } else if (tab === 'themes') {
       loadThemes();
     } else if (tab === 'stats') {
@@ -295,57 +344,38 @@ const PuzzlesPage = () => {
     }
   }, [currentPuzzle, solved]);
 
-  const loadRandom = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      for (let i = 0; i < 3; i++) {
-        const res = await puzzleAPI.getRandom();
-        const p = res.data.puzzle;
-        if (p && validatePuzzleOnClient(p)) {
-          const side = getSideFromFen(p.fen);
-          log(`Loaded random puzzle ${p.puzzleId}: FEN turn=${side}, solution[0]=${p.solution?.[0]}, length=${p.solution?.length}`);
-          setCurrentPuzzle(p);
-          setPuzzleSource('random');
-          setSolved(false);
-          setResult(null);
-          setShowSolution(false);
-          hintLevelRef.current = 0;
-          setHintLevel(0);
-          setHintData(null);
-          setError(null);
-          setLoading(false);
-          return;
-        }
-      }
-      setError('No valid puzzles found. Try again.');
-    } catch (err) {
-      log('loadRandom error:', err?.message);
-      setError(err?.response?.data?.message || err?.message || 'Failed to load puzzle');
-    }
-    setLoading(false);
-  }, []);
-
   const nextPuzzle = useCallback(async () => {
     setResult(null);
     setShowSolution(false);
+    setSolved(false);
     hintLevelRef.current = 0;
     setHintLevel(0);
     setHintData(null);
-    if (themePuzzles.length > 0) {
-      const idx = (themePuzzles || []).findIndex(p => p._id === currentPuzzle?._id);
+    const currentId = currentPuzzle?.puzzleId || currentPuzzle?._id;
+    if (themePuzzles.length > 0 && currentId) {
+      const idx = (themePuzzles || []).findIndex(p => (p._id || p.puzzleId) === currentId);
       if (idx >= 0 && idx < themePuzzles.length - 1) {
         const next = themePuzzles[idx + 1];
         if (validatePuzzleOnClient(next)) {
-          setSolved(false);
           setCurrentPuzzle(next);
           setPuzzleSource('themes');
           return;
         }
       }
     }
-    await loadRandom();
-  }, [themePuzzles, currentPuzzle, loadRandom]);
+    const excludeId = currentId;
+    for (let i = 0; i < 3; i++) {
+      const res = await puzzleAPI.getRandom();
+      const p = res.data.puzzle;
+      const pId = p?.puzzleId || p?._id;
+      if (p && validatePuzzleOnClient(p) && pId !== excludeId) {
+        setCurrentPuzzle(p);
+        setPuzzleSource('random');
+        return;
+      }
+    }
+    setError('No valid puzzles found. Try again.');
+  }, [themePuzzles, currentPuzzle]);
 
   const formatSolution = (fenStr, moves) => {
     if (!moves || moves.length === 0) return '';
@@ -596,7 +626,7 @@ const PuzzlesPage = () => {
                   hintLevelRef.current = 0;
                   setHintLevel(0);
                   setHintData(null);
-                  setTab('daily');
+                  setTab('practice');
                 }}>
                   <div className="puzzle-card-header">
                     <span className="puzzle-rating">{p.rating}</span>

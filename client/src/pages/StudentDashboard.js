@@ -7,17 +7,23 @@ import BookingCard from "../components/BookingCard";
 import SlotCard from "../components/SlotCard";
 import StudentAIWidget from "../components/dashboard/StudentAIWidget";
 import StudentPuzzleWidget from "../components/dashboard/StudentPuzzleWidget";
+import AnimatedCounter from "../components/AnimatedCounter";
 import "../styles/StudentDashboard.css";
 
-const StatCard = ({ icon, value, label, type }) => (
-  <div className="dash-stat-card">
-    <div className={`dash-stat-icon ${type}`}>{icon}</div>
-    <div className="dash-stat-info">
-      <h3>{value}</h3>
-      <p>{label}</p>
+const StatCard = ({ icon, value, label, type }) => {
+  const numValue = typeof value === 'number' ? value : parseInt(value) || 0;
+  return (
+    <div className="dash-stat-card">
+      <div className={`dash-stat-icon ${type}`}>{icon}</div>
+      <div className="dash-stat-info">
+        <h3 className="stat-count">
+          <AnimatedCounter target={numValue} />
+        </h3>
+        <p>{label}</p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const StudentDashboard = () => {
   const navigate = useNavigate();

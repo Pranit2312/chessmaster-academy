@@ -349,7 +349,8 @@ const PuzzleBoard = ({
           animationDuration={200}
           customBoardStyle={{
             borderRadius: '4px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            overflow: 'hidden'
           }}
           customLightSquareStyle={{ backgroundColor: '#f0d9b5' }}
           customDarkSquareStyle={{ backgroundColor: '#b58863' }}

@@ -1,10 +1,9 @@
-/* FULLSCREEN BLUR OVERLAY */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0;
   width: 100vw; height: 100vh;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -17,14 +16,14 @@
   to { opacity: 1; }
 }
 
-/* MAIN MODAL BOX */
 .modal-card {
   width: 500px;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(12px);
-  border-radius: 18px;
+  background: rgba(17, 24, 39, 0.98);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-2xl);
   padding: 2rem;
-  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-2xl);
   animation: slideUp 0.28s ease-out;
   position: relative;
 }
@@ -34,7 +33,6 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* CLOSE BUTTON */
 .modal-close {
   position: absolute;
   top: 12px;
@@ -43,21 +41,20 @@
   border: none;
   font-size: 20px;
   cursor: pointer;
-  color: #444;
-  transition: 0.2s ease;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
 }
 
 .modal-close:hover {
-  color: #000;
+  color: var(--text-primary);
   transform: scale(1.15);
 }
 
-/* FORM INPUTS */
 .slot-form label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 4px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--1);
   display: block;
 }
 
@@ -65,48 +62,42 @@
 .slot-form select,
 .slot-form textarea {
   width: 100%;
-  padding: 10px 12px;
-  margin-bottom: 15px;
-  border-radius: 10px;
-  border: 1.8px solid #d1d5db;
-  background: #f9fafb;
-  font-size: 15px;
-  transition: all 0.2s;
-}
-
-/* INPUT HOVER + FOCUS EFFECT */
-.slot-form input:hover,
-.slot-form select:hover,
-.slot-form textarea:hover {
-  border-color: #93c5fd;
+  padding: var(--2) var(--3);
+  margin-bottom: var(--4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  transition: all var(--transition-fast);
 }
 
 .slot-form input:focus,
 .slot-form select:focus,
 .slot-form textarea:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.28);
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
-/* SUBMIT BUTTON */
 .slot-form button {
   width: 100%;
-  padding: 12px;
-  background: #2563eb;
+  padding: var(--3);
+  background: linear-gradient(135deg, var(--brand-600), var(--brand-700));
   color: white;
   border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 600;
+  border-radius: var(--radius-xl);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
-  transition: 0.25s;
+  font-family: var(--font-sans);
+  transition: all var(--transition);
 }
 
 .slot-form button:hover {
-  background: #1d4ed8;
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.3), var(--shadow-brand);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
 }
 
 .slot-form button:active {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import BookingCard from '../components/BookingCard';
+import AnimatedCounter from '../components/AnimatedCounter';
 import { courseAPI, bookingAPI, walletAPI, slotAPI, userAPI } from '../utils/api';
 import '../styles/CoachDashboard.css';
 
@@ -209,22 +210,22 @@ const CoachDashboard = () => {
         <div className="cd-stat-card">
           <span className="cd-stat-icon">📅</span>
           <div>
-            <p className="cd-stat-value">{upcomingBookings.length}</p>
-            <p className="cd-stat-label">Upcoming Sessions</p>
+          <p className="cd-stat-value"><AnimatedCounter target={upcomingBookings.length} /></p>
+          <p className="cd-stat-label">Upcoming Sessions</p>
           </div>
         </div>
         <div className="cd-stat-card">
           <span className="cd-stat-icon">👥</span>
           <div>
-            <p className="cd-stat-value">{totalStudents}</p>
-            <p className="cd-stat-label">Active Students</p>
+          <p className="cd-stat-value"><AnimatedCounter target={totalStudents} /></p>
+          <p className="cd-stat-label">Active Students</p>
           </div>
         </div>
         <div className="cd-stat-card">
           <span className="cd-stat-icon">📚</span>
           <div>
-            <p className="cd-stat-value">{activeCourses}</p>
-            <p className="cd-stat-label">Active Courses</p>
+          <p className="cd-stat-value"><AnimatedCounter target={activeCourses} /></p>
+          <p className="cd-stat-label">Active Courses</p>
           </div>
         </div>
       </div>

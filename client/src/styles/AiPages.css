@@ -9,6 +9,30 @@
   min-height: calc(100vh - 80px);
 }
 
+.ai-page .setup-card,
+.ai-page .info-card,
+.ai-page .game-info-card,
+.ai-page .move-history-card,
+.ai-page .chat-history-sidebar,
+.ai-page .chat-main,
+.ai-page .summary-item,
+.ai-page .skill-radar,
+.ai-page .insight-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow);
+}
+
+.ai-page .stat-card,
+.ai-page .rec-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-2xl);
+}
+
 .ai-page-header {
   text-align: center;
   margin-bottom: 2.5rem;
@@ -57,9 +81,9 @@
   display: inline-block;
 }
 
-.engine-native { background: #22c55e; }
-.engine-wasm { background: #eab308; }
-.engine-unavailable { background: #ef4444; }
+.engine-native { background: var(--success-500); }
+.engine-wasm { background: var(--warning-500); }
+.engine-unavailable { background: var(--danger-500); }
 
 .difficulty-labels {
   display: flex;
@@ -91,15 +115,15 @@
 
 .game-result-banner.result-white_win,
 .game-result-banner.result-black_win {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
+  background: linear-gradient(135deg, var(--success-500), var(--success-600));
 }
 
 .game-result-banner.result-draw {
-  background: linear-gradient(135deg, #eab308, #ca8a04);
+  background: linear-gradient(135deg, var(--warning-500), var(--warning-600));
 }
 
 .game-result-banner.result-resigned {
-  background: linear-gradient(135deg, #6b7280, #4b5563);
+  background: linear-gradient(135deg, var(--neutral-500), var(--neutral-600));
 }
 
 .btn-lg {
@@ -316,7 +340,7 @@
   font-size: 1.3rem;
   font-weight: 700;
   text-align: center;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
+  background: linear-gradient(135deg, var(--success-500), var(--success-600));
   color: #fff;
   animation: slideIn 0.3s ease;
 }
@@ -469,15 +493,15 @@
   text-transform: uppercase;
 }
 
-.difficulty-beginner { background: #dcfce7; color: #166534; }
-.difficulty-easy { background: #bbf7d0; color: #166534; }
-.difficulty-medium { background: #fef9c3; color: #854d0e; }
-.difficulty-hard { background: #fed7aa; color: #9a3412; }
-.difficulty-expert { background: #fecaca; color: #991b1b; }
+.difficulty-beginner { background: var(--success-100); color: var(--success-700); }
+.difficulty-easy { background: var(--success-100); color: var(--success-700); }
+.difficulty-medium { background: var(--warning-100); color: var(--warning-600); }
+.difficulty-hard { background: var(--danger-100); color: var(--danger-700); }
+.difficulty-expert { background: var(--danger-100); color: var(--danger-700); }
 
 .puzzle-rating {
   font-size: 0.85rem;
-  color: #eab308;
+  color: var(--warning-500);
   font-weight: 600;
 }
 
@@ -491,8 +515,8 @@
 
 .source-lichess,
 .source-lichess_daily {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: var(--brand-100);
+  color: var(--brand-700);
 }
 
 .source-generated {
@@ -501,8 +525,8 @@
 }
 
 .source-from_game {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--brand-100);
+  color: var(--brand-700);
 }
 
 .puzzle-card-body {
@@ -575,19 +599,19 @@
 }
 
 .puzzle-hint {
-  background: rgba(234, 179, 8, 0.1);
-  border: 1px solid #eab308;
+  background: var(--warning-50);
+  border: 1px solid var(--warning-500);
   border-radius: 10px;
   padding: 0.75rem 1rem;
   margin-top: 1rem;
   font-size: 0.9rem;
-  color: #854d0e;
+  color: var(--warning-600);
 }
 
 .puzzle-success {
   text-align: center;
   padding: 1rem;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
+  background: linear-gradient(135deg, var(--success-500), var(--success-600));
   color: #fff;
   border-radius: 12px;
   font-weight: 700;
@@ -599,9 +623,9 @@
   text-align: center;
   padding: 0.75rem;
   background: rgba(239, 68, 68, 0.1);
-  border: 1px solid #ef4444;
-  border-radius: 10px;
-  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-xl);
+  color: var(--danger-400);
   font-weight: 500;
 }
 
@@ -630,12 +654,12 @@
 }
 
 .puzzle-message-success {
-  background: #22c55e;
+  background: var(--success-500);
   color: #fff;
 }
 
 .puzzle-message-error {
-  background: #ef4444;
+  background: var(--danger-500);
   color: #fff;
 }
 
@@ -717,6 +741,17 @@
 
 .openings-search .form-input {
   flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  padding: 0.75rem 1rem;
+}
+
+.openings-search .form-input:focus {
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  outline: none;
 }
 
 .opening-tree-view {
@@ -809,13 +844,13 @@
   text-transform: capitalize;
 }
 
-.tag-simple { background: #dcfce7; color: #166534; }
-.tag-moderate { background: #fef9c3; color: #854d0e; }
-.tag-complex { background: #fed7aa; color: #9a3412; }
-.tag-very-complex { background: #fecaca; color: #991b1b; }
-.tag-very-popular { background: #dcfce7; color: #166534; }
-.tag-popular { background: #dbeafe; color: #1e40af; }
-.tag-less-popular { background: #fef9c3; color: #854d0e; }
+.tag-simple { background: var(--success-100); color: var(--success-700); }
+.tag-moderate { background: var(--warning-100); color: var(--warning-700); }
+.tag-complex { background: var(--danger-100); color: var(--danger-700); }
+.tag-very-complex { background: var(--danger-50); color: var(--danger-700); }
+.tag-very-popular { background: var(--success-100); color: var(--success-700); }
+.tag-popular { background: var(--brand-100); color: var(--brand-800); }
+.tag-less-popular { background: var(--warning-100); color: var(--warning-700); }
 .tag-rare { background: #f3e8ff; color: #6b21a8; }
 
 /* Recommendations */
@@ -947,8 +982,8 @@
   display: inline-block;
   margin-left: 0.5rem;
   padding: 0.15rem 0.5rem;
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--brand-100);
+  color: var(--brand-800);
   border-radius: 20px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -1407,11 +1442,11 @@
   box-shadow: 0 4px 16px rgba(0,0,0,0.08);
 }
 
-.insight-critical { border-left-color: #ef4444; }
-.insight-major { border-left-color: #f97316; }
-.insight-moderate { border-left-color: #eab308; }
-.insight-minor { border-left-color: #3b82f6; }
-.insight-positive { border-left-color: #22c55e; }
+.insight-critical { border-left-color: var(--danger-500); }
+.insight-major { border-left-color: var(--danger-400); }
+.insight-moderate { border-left-color: var(--warning-500); }
+.insight-minor { border-left-color: var(--brand-500); }
+.insight-positive { border-left-color: var(--success-500); }
 
 .insight-rec {
   border-left-color: #8b5cf6;
@@ -1440,11 +1475,11 @@
   text-transform: capitalize;
 }
 
-.severity-critical { background: #fecaca; color: #991b1b; }
-.severity-major { background: #fed7aa; color: #9a3412; }
-.severity-moderate { background: #fef9c3; color: #854d0e; }
-.severity-minor { background: #dbeafe; color: #1e40af; }
-.severity-positive { background: #dcfce7; color: #166534; }
+.severity-critical { background: var(--danger-100); color: var(--danger-700); }
+.severity-major { background: var(--danger-100); color: var(--danger-700); }
+.severity-moderate { background: var(--warning-100); color: var(--warning-700); }
+.severity-minor { background: var(--brand-100); color: var(--brand-800); }
+.severity-positive { background: var(--success-100); color: var(--success-700); }
 
 .insight-title {
   font-size: 1.15rem;

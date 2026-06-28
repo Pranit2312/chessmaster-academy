@@ -1,89 +1,85 @@
-/**
- * BookSlot.css
- * Styling for the slot booking interface
- */
-
 .book-slot-container {
   max-width: 600px;
-  margin: 2rem auto;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin: var(--8) auto;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-xl);
   overflow: hidden;
 }
 
 .book-slot-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 2rem;
+  background: linear-gradient(135deg, var(--brand-600), rgba(6, 182, 212, 0.3));
+  padding: var(--8);
   text-align: center;
 }
 
 .book-slot-header h3 {
   margin: 0 0 0.5rem 0;
-  font-size: 1.5rem;
+  font-size: var(--text-2xl);
+  color: white;
 }
 
 .book-slot-header p {
   margin: 0;
-  opacity: 0.9;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .book-slot-loading {
-  padding: 3rem;
+  padding: var(--12);
   text-align: center;
-  font-size: 1.1rem;
-  color: #718096;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
 }
 
 .book-slot-error,
 .book-slot-success {
-  padding: 1rem 1.5rem;
-  margin: 1rem;
-  border-radius: 8px;
-  font-weight: 500;
+  padding: var(--4) var(--6);
+  margin: var(--4);
+  border-radius: var(--radius-lg);
+  font-weight: var(--weight-medium);
 }
 
 .book-slot-error {
-  background: #fed7d7;
-  color: #742a2a;
-  border: 1px solid #fc8181;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger-400);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .book-slot-success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--success-400);
+  border: 1px solid rgba(34, 197, 94, 0.2);
 }
 
 .book-slot-content {
-  padding: 2rem;
+  padding: var(--8);
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
-/* Info Boxes */
 .slot-info-box,
 .coach-info-box {
-  padding: 1.5rem;
-  background: #f7fafc;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  padding: var(--6);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-light);
 }
 
 .slot-info-box h4,
 .coach-info-box h4 {
   margin-top: 0;
-  color: #2d3748;
-  font-size: 1.1rem;
+  color: var(--text-primary);
+  font-size: var(--text-base);
 }
 
 .slot-detail {
   display: flex;
   justify-content: space-between;
   padding: 0.75rem 0;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .slot-detail:last-child {
@@ -91,22 +87,21 @@
 }
 
 .slot-detail .label {
-  font-weight: 600;
-  color: #4a5568;
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
 }
 
 .slot-detail .value {
-  color: #2d3748;
-  font-weight: 500;
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
 }
 
 .slot-detail .price {
-  color: #48bb78;
-  font-size: 1.2rem;
-  font-weight: 700;
+  color: var(--success-400);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
 }
 
-/* Coach Info */
 .coach-details {
   display: flex;
   gap: 1rem;
@@ -116,7 +111,7 @@
 .coach-details img {
   width: 80px;
   height: 80px;
-  border-radius: 8px;
+  border-radius: var(--radius-xl);
   object-fit: cover;
 }
 
@@ -126,14 +121,13 @@
 
 .coach-details p {
   margin: 0.25rem 0;
-  color: #2d3748;
+  color: var(--text-primary);
 }
 
 .coach-details strong {
-  font-size: 1.1rem;
+  font-size: var(--text-base);
 }
 
-/* Form */
 .booking-form {
   display: flex;
   flex-direction: column;
@@ -146,26 +140,29 @@
 }
 
 .form-group label {
-  font-weight: 600;
-  color: #2d3748;
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
   margin-bottom: 0.5rem;
+  font-size: var(--text-sm);
 }
 
 .form-group select,
 .form-group textarea {
   padding: 0.75rem;
-  border: 2px solid #cbd5e0;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-family: inherit;
-  transition: border-color 0.2s;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
 }
 
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .form-group textarea {
@@ -173,22 +170,22 @@
   min-height: 100px;
 }
 
-/* Button */
 .book-button {
   padding: 1rem;
-  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  background: linear-gradient(135deg, var(--success-500), var(--success-600));
   color: white;
   border: none;
-  border-radius: 8px;
-  font-weight: 700;
-  font-size: 1.1rem;
+  border-radius: var(--radius-xl);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-base);
   cursor: pointer;
-  transition: all 0.3s;
+  font-family: var(--font-sans);
+  transition: all var(--transition);
 }
 
 .book-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(72, 187, 120, 0.4);
+  box-shadow: 0 8px 20px rgba(34, 197, 94, 0.4);
 }
 
 .book-button:active:not(:disabled) {
@@ -200,22 +197,21 @@
   cursor: not-allowed;
 }
 
-/* Booking Confirmation */
 .booking-confirmation {
-  padding: 1.5rem;
-  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-  border: 2px solid #48bb78;
-  border-radius: 8px;
+  padding: var(--6);
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: var(--radius-xl);
   margin-bottom: 1rem;
 }
 
 .confirmation-header {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #155724;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--success-400);
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
-  border-bottom: 2px solid #48bb78;
+  border-bottom: 1px solid rgba(34, 197, 94, 0.2);
 }
 
 .confirmation-details {
@@ -224,40 +220,39 @@
 
 .confirmation-details p {
   margin: 0.5rem 0;
-  color: #1e5631;
-  font-weight: 500;
+  color: var(--success-300);
+  font-weight: var(--weight-medium);
 }
 
 .confirmation-note {
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 6px;
-  border-left: 4px solid #3b8f3b;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-lg);
+  border-left: 4px solid var(--success-500);
 }
 
 .confirmation-note p {
   margin: 0.5rem 0;
-  color: #155724;
-  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 .confirmation-note p:first-child {
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   margin-top: 0;
 }
 
-/* Terms */
 .booking-terms {
   padding: 1rem;
-  background: #f0fff4;
-  border-left: 4px solid #48bb78;
-  border-radius: 4px;
+  background: rgba(34, 197, 94, 0.05);
+  border-left: 4px solid var(--success-500);
+  border-radius: var(--radius-sm);
 }
 
 .booking-terms p {
   margin: 0.5rem 0;
-  color: #22543d;
-  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 .booking-terms p:first-child {
@@ -268,38 +263,30 @@
   margin-bottom: 0;
 }
 
-/* Responsive */
 @media (max-width: 600px) {
   .book-slot-container {
-    margin: 1rem;
-    border-radius: 8px;
+    margin: var(--4);
+    border-radius: var(--radius-xl);
   }
-
   .book-slot-header {
-    padding: 1.5rem 1rem;
+    padding: var(--6) var(--4);
   }
-
   .book-slot-content {
-    padding: 1rem;
+    padding: var(--4);
   }
-
-  .slot-info-box,
-  .coach-info-box {
-    padding: 1rem;
+  .slot-info-box, .coach-info-box {
+    padding: var(--4);
   }
-
   .coach-details {
     flex-direction: column;
     align-items: flex-start;
   }
-
   .coach-details img {
     width: 60px;
     height: 60px;
   }
-
   .book-button {
     padding: 0.875rem;
-    font-size: 1rem;
+    font-size: var(--text-base);
   }
 }

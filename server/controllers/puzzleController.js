@@ -31,37 +31,76 @@ function convertSolutionToSan(fen, solution) {
 
 function validatePuzzle(puzzle) {
   if (!puzzle || !puzzle.fen || !puzzle.solution || puzzle.solution.length === 0) return false;
+  if (puzzle.solution.length < 2) return false; // need at least one user + one opponent move
   try {
     const chess = new Chess(puzzle.fen);
     const sideToMove = chess.turn();
     const playerSide = puzzle.playerSide || 'w';
-    if (sideToMove !== playerSide) {
-      return false;
-    }
+    if (sideToMove !== playerSide) return false;
 
-    // Replay all moves, ensuring they produce SAN (not raw UCI)
-    // This catches mixed SAN/UCI solutions from buggy imports
+    // Replay all moves, ensuring they produce valid SAN
     const test = new Chess(puzzle.fen);
     const expectedColor = sideToMove;
+    const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+
+    function countMaterial(bd) {
+      let white = 0, black = 0, bdStr = bd.fen();
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const sq = 'abcdefgh'[c] + (r + 1);
+          const p = bd.get(sq);
+          if (p) {
+            if (p.color === 'w') white += pieceValues[p.type];
+            else black += pieceValues[p.type];
+          }
+        }
+      }
+      return { white, black };
+    }
+
+    const startMaterial = countMaterial(test);
+    const startDiff = startMaterial.white - startMaterial.black;
+
     for (let i = 0; i < puzzle.solution.length; i++) {
+      const rawMove = puzzle.solution[i];
       let moveResult;
       try {
-        moveResult = test.move(puzzle.solution[i], { sloppy: true });
-      } catch {
-        return false;
-      }
+        moveResult = test.move(rawMove, { sloppy: true });
+      } catch { return false; }
       if (!moveResult) return false;
-      // Verify the output is SAN (moveResult.san is always SAN from chess.js)
-      const isUci = /^[a-h][1-8][a-h][1-8]([qrbn])?$/.test(puzzle.solution[i]);
-      if (isUci && moveResult.san !== puzzle.solution[i]) {
-        return false; // Stored UCI but produced different SAN — mixed solution
-      }
+
       const turnAtMove = i % 2 === 0 ? expectedColor : (expectedColor === 'w' ? 'b' : 'w');
-      if (moveResult.color !== turnAtMove) {
-        return false;
-      }
+      if (moveResult.color !== turnAtMove) return false;
     }
-    return true;
+
+    // === Outcome Verification ===
+    const finalMate = test.isCheckmate();
+    const finalGameOver = test.isGameOver();
+    const finalStalemate = test.isStalemate();
+    const finalDraw = test.isDraw();
+    const finalInsufficient = test.isInsufficientMaterial();
+
+    // Checkmate is always a valid puzzle outcome
+    if (finalMate) return true;
+
+    // Stalemate/insufficient material — still a clear game-over outcome
+    if (finalStalemate || finalInsufficient) return true;
+
+    // Calculate material change
+    const endMaterial = countMaterial(test);
+    const endDiff = endMaterial.white - endMaterial.black;
+    // Determine which side made the last move
+    const lastMoveColor = test.turn() === 'w' ? 'b' : 'w';
+    const netGain = lastMoveColor === 'w'
+      ? (endDiff - startDiff)
+      : (startDiff - endDiff);
+
+    // The side that played the last move must have gained >= 2 points in material
+    // (equivalent to a minor piece advantage)
+    if (netGain >= 2) return true;
+
+    // If no material gain but game is still going, it's a non-tactical puzzle — reject
+    return false;
   } catch {
     return false;
   }
@@ -281,6 +320,26 @@ exports.check = async (req, res) => {
 
     if (!validSolution) {
       return res.status(500).json({ success: false, message: 'Invalid puzzle solution in database' });
+    }
+
+    // Server-side outcome verification: checkmate or material gain required
+    if (!gameOver) {
+      const pieceVals = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+      const startChess = new Chess(puzzle.fen);
+      let sw = 0, sb = 0, ew = 0, eb = 0;
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const sq = 'abcdefgh'[c] + (r + 1);
+          const sp = startChess.get(sq);
+          if (sp) { sp.color === 'w' ? sw += pieceVals[sp.type] : sb += pieceVals[sp.type]; }
+          const ep = chess.get(sq);
+          if (ep) { ep.color === 'w' ? ew += pieceVals[ep.type] : eb += pieceVals[ep.type]; }
+        }
+      }
+      const netGain = (chess.turn() === 'w' ? (ew - eb) - (sw - sb) : (sb - sw) - (eb - ew));
+      if (netGain < 2) {
+        return res.json({ success: true, correct: false, message: 'Puzzle has no clear tactical outcome' });
+      }
     }
 
     // completed: true means user played through the entire solution

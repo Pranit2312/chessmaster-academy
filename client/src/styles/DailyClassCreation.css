@@ -1,9 +1,10 @@
 .daily-class-creation-container {
-  background-color: var(--surface-primary);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
   padding: 2rem;
-  border-radius: 12px;
+  border-radius: var(--radius-2xl);
   box-shadow: var(--shadow);
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--glass-border);
 }
 
 .dcc-header {
@@ -25,9 +26,9 @@
   display: flex;
   gap: 2rem;
   margin-bottom: 1.5rem;
-  background-color: var(--surface-secondary);
+  background: rgba(255, 255, 255, 0.03);
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-xl);
 }
 
 .dcc-mode-toggle label {
@@ -53,20 +54,26 @@
 .dcc-date-selection input, .dcc-bulk-days input, .dcc-input, .dcc-select {
   padding: 0.75rem;
   border: 1px solid var(--border-light);
-  background-color: var(--surface-primary);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text-primary);
-  border-radius: 6px;
+  border-radius: var(--radius-lg);
   width: 100%;
   max-width: 300px;
+}
+
+.dcc-date-selection input:focus, .dcc-bulk-days input:focus, .dcc-input:focus, .dcc-select:focus {
+  outline: none;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .dcc-meeting-details {
   display: flex;
   gap: 2rem;
   margin-bottom: 1.5rem;
-  background-color: var(--surface-secondary);
+  background: rgba(255, 255, 255, 0.03);
   padding: 1.5rem;
-  border-radius: 8px;
+  border-radius: var(--radius-xl);
   flex-wrap: wrap;
 }
 
@@ -97,19 +104,20 @@
   display: flex;
   flex-direction: column;
   padding: 1rem;
-  background-color: var(--surface-secondary);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border-radius: var(--radius-xl);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .dcc-slot-checkbox:hover {
-  border-color: var(--brand-600);
+  border-color: rgba(37, 99, 235, 0.3);
 }
 
 .dcc-slot-checkbox input {
   margin-bottom: 0.5rem;
+  accent-color: var(--brand-500);
 }
 
 .dcc-slot-label {
@@ -129,21 +137,32 @@
 }
 
 .dcc-create-btn {
-  background-color: var(--brand-600);
+  background: linear-gradient(135deg, var(--brand-600), var(--brand-700));
   color: white;
   padding: 0.75rem 2rem;
-  border-radius: 8px;
+  border-radius: var(--radius-xl);
   font-weight: 600;
   border: none;
   cursor: pointer;
+  transition: all var(--transition);
+}
+
+.dcc-create-btn:hover {
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.3);
 }
 
 .dcc-delete-btn {
-  background-color: #fee2e2;
-  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger-400);
   padding: 0.75rem 2rem;
-  border-radius: 8px;
-  font-weight: 600;
-  border: 1px solid #fecaca;
+  border-radius: var(--radius-xl);
+  font-weight: var(--weight-semibold);
+  border: 1px solid rgba(239, 68, 68, 0.2);
   cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all var(--transition-fast);
+}
+
+.dcc-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
 }

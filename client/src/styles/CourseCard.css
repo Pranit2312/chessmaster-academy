@@ -1,10 +1,11 @@
 .course-card {
-  background-color: var(--surface-primary);
-  border-radius: 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border-radius: var(--radius-2xl);
   overflow: hidden;
   box-shadow: var(--shadow);
-  border: 1px solid var(--border-light);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid var(--glass-border);
+  transition: all var(--transition);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -13,12 +14,14 @@
 
 .course-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  border-color: rgba(37, 99, 235, 0.2);
 }
 
 .course-image {
   position: relative;
   height: 200px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(6, 182, 212, 0.05));
 }
 
 .course-image img {
@@ -32,13 +35,13 @@
   top: 12px;
   right: 12px;
   padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
 }
 
 .course-content {
-  padding: 1.5rem;
+  padding: var(--6);
   flex-grow: 1;
   display: flex;
   flex-direction: column;
@@ -48,12 +51,12 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
+  margin-bottom: var(--4);
 }
 
 .course-title {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
   color: var(--text-primary);
   margin: 0;
   line-height: 1.4;
@@ -66,14 +69,14 @@
 }
 
 .rating-value {
-  font-weight: 600;
-  color: #fbbf24;
+  font-weight: var(--weight-semibold);
+  color: var(--warning-400);
 }
 
 .course-description {
   color: var(--text-secondary);
-  font-size: 0.875rem;
-  margin-bottom: 1.5rem;
+  font-size: var(--text-sm);
+  margin-bottom: var(--6);
   line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -85,11 +88,11 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--6);
 }
 
 .info-item {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
 }
 
 .info-item .label {
@@ -100,7 +103,7 @@
 
 .info-item .value {
   color: var(--text-primary);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 
 .course-footer {
@@ -108,7 +111,7 @@
   justify-content: space-between;
   align-items: center;
   margin-top: auto;
-  padding-top: 1rem;
+  padding-top: var(--4);
   border-top: 1px solid var(--border-light);
 }
 
@@ -118,39 +121,40 @@
 }
 
 .price {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
   color: var(--text-primary);
 }
 
 .price-free {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #10b981;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  color: var(--success-400);
 }
 
 .discount {
-  font-size: 0.75rem;
-  color: #ef4444;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  color: var(--danger-400);
+  font-weight: var(--weight-semibold);
 }
 
 .btn-enroll {
-  background-color: var(--brand-600);
+  background: linear-gradient(135deg, var(--brand-600), var(--brand-700));
   color: white;
   border: none;
   padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-weight: 600;
+  border-radius: var(--radius-lg);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
-  transition: background 0.2s;
+  font-family: var(--font-sans);
+  transition: all var(--transition-fast);
 }
 
 .btn-enroll:hover {
-  background-color: #1d4ed8;
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.3);
 }
 
-.difficulty-beginner { background: #d1fae5; color: #065f46; }
-.difficulty-intermediate { background: #dbeafe; color: #1e40af; }
-.difficulty-advanced { background: #fef3c7; color: #92400e; }
-.difficulty-expert { background: #fee2e2; color: #991b1b; }
+.difficulty-beginner { background: rgba(34, 197, 94, 0.15); color: var(--success-400); }
+.difficulty-intermediate { background: rgba(37, 99, 235, 0.15); color: var(--brand-300); }
+.difficulty-advanced { background: rgba(245, 158, 11, 0.15); color: var(--warning-400); }
+.difficulty-expert { background: rgba(239, 68, 68, 0.15); color: var(--danger-400); }

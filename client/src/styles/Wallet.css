@@ -2,7 +2,6 @@
   max-width: 1000px;
   margin: 2rem auto;
   padding: 0 1.5rem;
-  background-color: var(--surface-secondary);
 }
 
 .wallet-header {
@@ -20,13 +19,13 @@
 }
 
 .balance-card {
-  background: linear-gradient(135deg, var(--brand-600) 0%, #1e40af 100%);
+  background: linear-gradient(135deg, var(--brand-600) 0%, var(--brand-800) 100%);
   color: white;
   padding: 2.5rem;
-  border-radius: 20px;
+  border-radius: var(--radius-2xl);
   text-align: center;
   margin-bottom: 3rem;
-  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 0 30px rgba(37, 99, 235, 0.2);
 }
 
 .balance-card h3 {
@@ -55,10 +54,11 @@
 }
 
 .transactions-list {
-  background-color: var(--surface-primary);
-  border-radius: 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border-radius: var(--radius-2xl);
   box-shadow: var(--shadow);
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--glass-border);
   overflow: hidden;
 }
 
@@ -90,11 +90,11 @@
 }
 
 .tx-amount.credit {
-  color: #10b981;
+  color: var(--success-500);
 }
 
 .tx-amount.debit {
-  color: #ef4444;
+  color: var(--danger-500);
 }
 
 .modal-form {
@@ -111,9 +111,17 @@
 
 .modal-form input {
   padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
   width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+}
+
+.modal-form input:focus {
+  outline: none;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 @media (max-width: 640px) {

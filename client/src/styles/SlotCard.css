@@ -1,47 +1,46 @@
 .slot-card {
-  background: white;
-  border-radius: 14px;
-  padding: 1.6rem;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
-  transition: 0.25s ease;
-  border: 1px solid #e5e7eb;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border-radius: var(--radius-2xl);
+  padding: var(--6);
+  box-shadow: var(--shadow);
+  transition: all var(--transition);
+  border: 1px solid var(--glass-border);
 }
 
 .slot-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.13);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(37, 99, 235, 0.3);
 }
 
-/* Header */
 .slot-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #ececec;
+  border-bottom: 1px solid var(--border-light);
   padding-bottom: 0.9rem;
 }
 
 .slot-date-block h4 {
   margin: 0;
-  color: #111827;
-  font-size: 1.1rem;
-  font-weight: 600;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
 }
 
 .slot-time {
   margin: 0;
-  font-size: 14px;
-  color: #6b7280;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }
 
-/* Price */
 .slot-price {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: #2563eb;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  color: var(--brand-600);
 }
 
-/* Details */
 .slot-info {
   margin-top: 1rem;
   margin-bottom: 1rem;
@@ -52,29 +51,27 @@
   align-items: center;
   gap: 0.4rem;
   margin-bottom: 6px;
-  color: #374151;
-  font-size: 15px;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
 }
 
 .slot-icon {
-  color: #2563eb;
+  color: var(--brand-600);
 }
 
-/* Notes */
 .slot-notes {
-  background: #f9fafb;
+  background: rgba(255, 255, 255, 0.03);
   padding: 0.9rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-bottom: 1rem;
-  color: #374151;
-  font-size: 14px;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
 }
 
-/* Coach info */
 .slot-coach {
-  background: #f0f9ff;
+  background: rgba(37, 99, 235, 0.08);
   padding: 0.8rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-bottom: 1rem;
   display: flex;
   justify-content: space-between;
@@ -82,21 +79,19 @@
 }
 
 .coach-rating {
-  background: #2563eb;
+  background: var(--brand-600);
   color: white;
   padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
 }
 
-/* Actions */
 .slot-actions {
   display: flex;
   gap: 0.75rem;
 }
 
-/* Badge improvements */
 .booked-badge {
-  font-size: 13px;
+  font-size: var(--text-xs);
   padding: 6px 10px;
 }
